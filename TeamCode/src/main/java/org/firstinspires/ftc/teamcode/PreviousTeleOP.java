@@ -34,21 +34,14 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
-import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.util.ElapsedTime;
-
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.vision.VisionPortal;
 
 /*
  * This file includes a teleop (driver-controlled) file for the goBILDA® StarterBot for the
@@ -65,13 +58,10 @@ import org.firstinspires.ftc.vision.VisionPortal;
  * we will also need to adjust the "PIDF" coefficients with some that are a better fit for our application.
  */
 
-@TeleOp(name = "StarterBotTeleop", group = "StarterBot")
+@TeleOp(name = "StarterBotTeleop Previous", group = "StarterBot")
 //@Disabled
-public class StarterBotTeleop extends OpMode {
-    FtcDashboard dashboard = FtcDashboard.getInstance();
-    TelemetryPacket packet = new TelemetryPacket();
-
-    final double FEED_TIME_SECONDS = 0.25; //The feeder servos run this long when a shot is requested.
+public class PreviousTeleOP extends OpMode {
+    final double FEED_TIME_SECONDS = 0.20; //The feeder servos run this long when a shot is requested.
     final double STOP_SPEED = 0.0; //We send this power to the servos when we want them to stop.
     final double FULL_SPEED = 1.0;
 
@@ -81,12 +71,8 @@ public class StarterBotTeleop extends OpMode {
      * velocity. Here we are setting the target, and minimum velocity that the launcher should run
      * at. The minimum velocity is a threshold for determining when to fire.
      */
-    double launchMult = 1.5;
-
-    double LAUNCHER_TARGET_VELOCITY = 1125*launchMult; //2250
-    double LAUNCHER_MIN_VELOCITY = 1075*launchMult;
-
-    final double TIME_BETWEEN_SHOTS = 2;
+    final double LAUNCHER_TARGET_VELOCITY = 2000;
+    final double LAUNCHER_MIN_VELOCITY = 1980;
 
     // Declare OpMode members.
     private DcMotor leftDrive = null;
@@ -95,11 +81,7 @@ public class StarterBotTeleop extends OpMode {
     private CRServo leftFeeder = null;
     private CRServo rightFeeder = null;
 
-    private DistanceSensor frontSensor = null;
-
     ElapsedTime feederTimer = new ElapsedTime();
-
-    private ElapsedTime shotTimer = new ElapsedTime();
 
     /*
      * TECH TIP: State Machines
@@ -137,15 +119,6 @@ public class StarterBotTeleop extends OpMode {
     public void init() {
         launchState = LaunchState.IDLE;
 
-        final StarterBotAprilTagLocalization.CameraStreamProcessor processor = new StarterBotAprilTagLocalization.CameraStreamProcessor();
-
-        new VisionPortal.Builder()
-                .addProcessor(processor)
-                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
-                .build();
-
-        FtcDashboard.getInstance().startCameraStream(processor, 0);
-
         /*
          * Initialize the hardware variables. Note that the strings used here as parameters
          * to 'get' must correspond to the names assigned during the robot configuration
@@ -156,8 +129,6 @@ public class StarterBotTeleop extends OpMode {
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
         leftFeeder = hardwareMap.get(CRServo.class, "left_feeder");
         rightFeeder = hardwareMap.get(CRServo.class, "right_feeder");
-
-        frontSensor = hardwareMap.get(DistanceSensor.class, "front_2m");
 
         /*
          * To drive forward, most robots need the motor on one side to be reversed,
@@ -193,7 +164,7 @@ public class StarterBotTeleop extends OpMode {
         leftFeeder.setPower(STOP_SPEED);
         rightFeeder.setPower(STOP_SPEED);
 
-        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(300, 0, 0, 10)); //new PIDFCoefficients(16, 18, 1, 0));
+        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(300, 0, 0, 10));
 
         /*
          * Much like our drivetrain motors, we set the left feeder servo to reverse so that they
@@ -247,25 +218,10 @@ public class StarterBotTeleop extends OpMode {
             launcher.setVelocity(STOP_SPEED);
         }
 
-        if (gamepad1.dpad_up) {
-            launchMult += 0.01;
-        } else if (gamepad1.dpad_down) { // stop flywheel
-            launchMult -= 0.01;
-        }
-
-        LAUNCHER_TARGET_VELOCITY = 1125*launchMult;
-        LAUNCHER_MIN_VELOCITY = 1075*launchMult;
-        
-        /*if (gamepad1.x) {
-            launcher.setVelocity(1000);
-        } else {
-            launcher.setVelocity(0);
-        }*/
-
         /*
          * Now we call our "Launch" function.
          */
-        launch(gamepad1.right_bumper);
+        launch(gamepad1.rightBumperWasPressed());
 
         /*
          * Show the state and motor powers
@@ -273,14 +229,7 @@ public class StarterBotTeleop extends OpMode {
         telemetry.addData("State", launchState);
         telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
         telemetry.addData("motorSpeed", launcher.getVelocity());
-        telemetry.addData("launchMult", launchMult);
-        telemetry.addData("launchPower", LAUNCHER_TARGET_VELOCITY);
 
-        packet.put("goalVelocity", LAUNCHER_TARGET_VELOCITY);
-        packet.put("realVelocity", launcher.getVelocity());
-        packet.put("distanceToGoal", frontSensor.getDistance(DistanceUnit.INCH));
-
-        dashboard.sendTelemetryPacket(packet);
     }
 
     /*
@@ -306,7 +255,6 @@ public class StarterBotTeleop extends OpMode {
             case IDLE:
                 if (shotRequested) {
                     launchState = LaunchState.SPIN_UP;
-                    shotTimer.reset();
                 }
                 break;
             case SPIN_UP:
@@ -323,9 +271,7 @@ public class StarterBotTeleop extends OpMode {
                 break;
             case LAUNCHING:
                 if (feederTimer.seconds() > FEED_TIME_SECONDS) {
-                    if(shotTimer.seconds() > TIME_BETWEEN_SHOTS){
-                        launchState = LaunchState.IDLE;
-                    }
+                    launchState = LaunchState.IDLE;
                     leftFeeder.setPower(STOP_SPEED);
                     rightFeeder.setPower(STOP_SPEED);
                 }

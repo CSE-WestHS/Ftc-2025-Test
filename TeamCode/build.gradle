@@ -23,6 +23,13 @@ android {
     }
 }
 
+repositories {
+    flatDir {
+        dirs 'libs', 'C:\\Users\\Callie\\navx-micro\\android\\libs'
+    }
+}
+
 dependencies {
     implementation project(':FtcRobotController')
+    implementation (name:'navx_ftc-release', ext:'aar')
 }
