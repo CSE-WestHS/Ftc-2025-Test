@@ -75,18 +75,20 @@ public class StarterBotTeleop extends OpMode {
     final double STOP_SPEED = 0.0; //We send this power to the servos when we want them to stop.
     final double FULL_SPEED = 1.0;
 
+    final double DRIVE_SPEED = 0.8;
+
+
     /*
      * When we control our launcher motor, we are using encoders. These allow the control system
      * to read the current speed of the motor and apply more or less power to keep it at a constant
      * velocity. Here we are setting the target, and minimum velocity that the launcher should run
      * at. The minimum velocity is a threshold for determining when to fire.
      */
-    double launchMult = 1.5;
 
-    double LAUNCHER_TARGET_VELOCITY = 1125*launchMult; //2250
-    double LAUNCHER_MIN_VELOCITY = 1075*launchMult;
+    double LAUNCHER_TARGET_VELOCITY = 1300; //2250
+    double LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY*0.95;
 
-    final double TIME_BETWEEN_SHOTS = 2;
+    //final double TIME_BETWEEN_SHOTS = 2;
 
     // Declare OpMode members.
     private DcMotor leftDrive = null;
@@ -166,8 +168,8 @@ public class StarterBotTeleop extends OpMode {
          * Note: The settings here assume direct drive on left and right wheels. Gear
          * Reduction or 90 Deg drives may require direction flips
          */
-        leftDrive.setDirection(DcMotor.Direction.REVERSE);
-        rightDrive.setDirection(DcMotor.Direction.FORWARD);
+        leftDrive.setDirection(DcMotor.Direction.FORWARD);
+        rightDrive.setDirection(DcMotor.Direction.REVERSE);
 
         /*
          * Here we set our launcher to the RUN_USING_ENCODER runmode.
@@ -246,15 +248,6 @@ public class StarterBotTeleop extends OpMode {
         } else if (gamepad1.b) { // stop flywheel
             launcher.setVelocity(STOP_SPEED);
         }
-
-        if (gamepad1.dpad_up) {
-            launchMult += 0.01;
-        } else if (gamepad1.dpad_down) { // stop flywheel
-            launchMult -= 0.01;
-        }
-
-        LAUNCHER_TARGET_VELOCITY = 1125*launchMult;
-        LAUNCHER_MIN_VELOCITY = 1075*launchMult;
         
         /*if (gamepad1.x) {
             launcher.setVelocity(1000);
@@ -273,12 +266,14 @@ public class StarterBotTeleop extends OpMode {
         telemetry.addData("State", launchState);
         telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
         telemetry.addData("motorSpeed", launcher.getVelocity());
-        telemetry.addData("launchMult", launchMult);
         telemetry.addData("launchPower", LAUNCHER_TARGET_VELOCITY);
+
+        if (launcher.getVelocity() > 1) telemetry.addLine("!!!!LAUNCHER IS ON!!!!");
 
         packet.put("goalVelocity", LAUNCHER_TARGET_VELOCITY);
         packet.put("realVelocity", launcher.getVelocity());
         packet.put("distanceToGoal", frontSensor.getDistance(DistanceUnit.INCH));
+
 
         dashboard.sendTelemetryPacket(packet);
     }
@@ -291,8 +286,11 @@ public class StarterBotTeleop extends OpMode {
     }
 
     void arcadeDrive(double forward, double rotate) {
-        leftPower = forward + rotate;
-        rightPower = forward - rotate;
+        leftPower = (forward - rotate) * DRIVE_SPEED;
+        rightPower = (forward + rotate) * DRIVE_SPEED;
+
+        leftPower = slew(leftDrive.getPower(),leftPower,0.1);
+        leftPower = slew(leftDrive.getPower(),leftPower,0.1);
 
         /*
          * Send calculated power to wheels
@@ -323,13 +321,21 @@ public class StarterBotTeleop extends OpMode {
                 break;
             case LAUNCHING:
                 if (feederTimer.seconds() > FEED_TIME_SECONDS) {
-                    if(shotTimer.seconds() > TIME_BETWEEN_SHOTS){
-                        launchState = LaunchState.IDLE;
-                    }
+                    //if(shotTimer.seconds() > TIME_BETWEEN_SHOTS){
+                    launchState = LaunchState.IDLE;
+                    //}
                     leftFeeder.setPower(STOP_SPEED);
                     rightFeeder.setPower(STOP_SPEED);
                 }
                 break;
         }
+    }
+
+    double slew (double motorOut, double analogIn, double slewRate) {
+        if (slewRate < (Math.abs(motorOut - analogIn))) {
+            if (motorOut - analogIn < 0) return (motorOut + slewRate);
+            else return (motorOut - slewRate);
+        }
+        else return analogIn;
     }
 }

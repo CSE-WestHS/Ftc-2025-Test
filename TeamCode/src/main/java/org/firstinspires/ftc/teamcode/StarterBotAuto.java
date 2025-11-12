@@ -34,6 +34,13 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
+import android.util.Log;
+
+import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
+import com.kauailabs.navx.ftc.AHRS;
+import com.kauailabs.navx.ftc.navXPIDController;
+import com.qualcomm.hardware.kauailabs.NavxMicroNavigationSensor;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -45,6 +52,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+
+import java.text.DecimalFormat;
 
 
 /*
@@ -66,6 +75,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 //@Disabled
 public class StarterBotAuto extends OpMode
 {
+    FtcDashboard dashboard = FtcDashboard.getInstance();
+    TelemetryPacket packet = new TelemetryPacket();
 
     final double FEED_TIME = 0.20; //The feeder servos run this long when a shot is requested.
 
@@ -75,8 +86,8 @@ public class StarterBotAuto extends OpMode
      * velocity. Here we are setting the target and minimum velocity that the launcher should run
      * at. The minimum velocity is a threshold for determining when to fire.
      */
-    final double LAUNCHER_TARGET_VELOCITY = 1125*1.5;
-    final double LAUNCHER_MIN_VELOCITY = 1100*1.5;
+        final double LAUNCHER_TARGET_VELOCITY = 1300;
+    final double LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY*0.95;
 
     /*
      * The number of seconds that we wait between each of our 3 shots from the launcher. This
@@ -180,6 +191,22 @@ public class StarterBotAuto extends OpMode
 
     private StartingPosition startingPosition = StartingPosition.CLOSE;
 
+    private AHRS navx;
+    private navXPIDController yawPIDController;
+    private ElapsedTime runtime = new ElapsedTime();
+
+    private final byte NAVX_DEVICE_UPDATE_RATE_HZ = 50;
+
+    private double TARGET_ANGLE_DEGREES = 90.0;
+    private final double TOLERANCE_DEGREES = 2.0;
+    private final double MIN_MOTOR_OUTPUT_VALUE = -1.0;
+    private final double MAX_MOTOR_OUTPUT_VALUE = 1.0;
+    private final double YAW_PID_P = 0.005;
+    private final double YAW_PID_I = 0.0;
+    private final double YAW_PID_D = 0.0;
+
+    private boolean calibration_complete = false;
+
     /*
      * This code runs ONCE when the driver hits INIT.
      */
@@ -213,8 +240,8 @@ public class StarterBotAuto extends OpMode
          * Note: The settings here assume direct drive on left and right wheels. Gear
          * Reduction or 90° drives may require direction flips
          */
-        leftDrive.setDirection(DcMotor.Direction.REVERSE);
-        rightDrive.setDirection(DcMotor.Direction.FORWARD);
+        leftDrive.setDirection(DcMotor.Direction.FORWARD);
+        rightDrive.setDirection(DcMotor.Direction.REVERSE);
 
         /*
          * Here we reset the encoders on our drive motors before we start moving.
@@ -250,6 +277,32 @@ public class StarterBotAuto extends OpMode
          * both work to feed the ball into the robot.
          */
         leftFeeder.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        navx = AHRS.getInstance(hardwareMap.get(NavxMicroNavigationSensor.class, "navx"),
+                AHRS.DeviceDataType.kProcessedData,
+                NAVX_DEVICE_UPDATE_RATE_HZ);
+
+        yawPIDController = new navXPIDController( navx,
+                navXPIDController.navXTimestampedDataSource.YAW);
+
+        yawPIDController.setSetpoint(TARGET_ANGLE_DEGREES);
+        yawPIDController.setContinuous(true);
+        yawPIDController.setOutputRange(MIN_MOTOR_OUTPUT_VALUE, MAX_MOTOR_OUTPUT_VALUE);
+        yawPIDController.setTolerance(navXPIDController.ToleranceType.ABSOLUTE, TOLERANCE_DEGREES);
+        yawPIDController.setPID(YAW_PID_P, YAW_PID_I, YAW_PID_D);
+
+        while ( !calibration_complete ) {
+            /* navX-Micro Calibration completes automatically ~15 seconds after it is
+            powered on, as long as the device is still.  To handle the case where the
+            navX-Micro has not been able to calibrate successfully, hold off using
+            the navX-Micro Yaw value until calibration is complete.
+             */
+            calibration_complete = !navx.isCalibrating();
+            if (!calibration_complete) {
+                telemetry.addData("navX-Micro", "Startup Calibration in Progress");
+            }
+        }
+        navx.zeroYaw();
 
 
         // Tell the driver that initialization is complete.
@@ -315,10 +368,17 @@ public class StarterBotAuto extends OpMode
         switch (autonomousState){
             case DRIVE_TO_LAUNCH_SPOT:
                 if (startingPosition == StartingPosition.CLOSE) {
-                    if (drive(-DRIVE_SPEED, 48, DistanceUnit.INCH,1)) {
+                    if (drive(DRIVE_SPEED, -48, DistanceUnit.INCH,1)) {
                         leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
                         rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
                         autonomousState = AutonomousState.LAUNCH;
+                    }
+                } else if (startingPosition == StartingPosition.FAR) {
+                    if (drive(DRIVE_SPEED, 85, DistanceUnit.INCH,1)) {
+
+                        rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        autonomousState = AutonomousState.ROTATE_TO_GOAL;
                     }
                 }
                 break;
@@ -330,6 +390,19 @@ public class StarterBotAuto extends OpMode
              * "false" condition means that we are continuing to call the function every loop,
              * allowing it to cycle through and continue the process of launching the first ball.
              */
+            case ROTATE_TO_GOAL:
+                if(alliance == Alliance.RED){
+                    robotRotationAngle = 40;
+                } else if (alliance == Alliance.BLUE){
+                    robotRotationAngle = -50;
+                }
+
+                if(rotate(ROTATE_SPEED, robotRotationAngle, AngleUnit.DEGREES,1)){
+                    leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    autonomousState = AutonomousState.LAUNCH;
+                }
+                break;
             case LAUNCH:
                 launch(true);
                 autonomousState = AutonomousState.WAIT_FOR_LAUNCH;
@@ -362,9 +435,9 @@ public class StarterBotAuto extends OpMode
 
             case ROTATING:
                 if(alliance == Alliance.RED){
-                    robotRotationAngle = 45;
-                } else if (alliance == Alliance.BLUE){
                     robotRotationAngle = -45;
+                } else if (alliance == Alliance.BLUE){
+                    robotRotationAngle = 45;
                 }
 
                 if(rotate(ROTATE_SPEED, robotRotationAngle, AngleUnit.DEGREES,1)){
@@ -375,7 +448,7 @@ public class StarterBotAuto extends OpMode
                 break;
 
             case DRIVING_OFF_LINE:
-                if(drive(-DRIVE_SPEED, 26, DistanceUnit.INCH, 1)){
+                if(drive(DRIVE_SPEED, -35, DistanceUnit.INCH, 1)){
                     autonomousState = AutonomousState.COMPLETE;
                 }
                 break;
@@ -396,6 +469,15 @@ public class StarterBotAuto extends OpMode
         telemetry.addData("Motor Target Positions", "left (%d), right (%d)",
                 leftDrive.getTargetPosition(), rightDrive.getTargetPosition());
         telemetry.update();
+
+        packet.put("goalVelocity", LAUNCHER_TARGET_VELOCITY);
+        packet.put("realVelocity", launcher.getVelocity());
+        packet.put("leftDrive", leftDrive.getPower());
+        packet.put("rightDrive", rightDrive.getPower());
+        packet.put("leftDrivePos", leftDrive.getCurrentPosition());
+        packet.put("rightDrivePos", rightDrive.getCurrentPosition());
+
+        dashboard.sendTelemetryPacket(packet);
     }
 
     /*
@@ -497,7 +579,7 @@ public class StarterBotAuto extends OpMode
      *         holdSeconds. False otherwise.
      */
     boolean rotate(double speed, double angle, AngleUnit angleUnit, double holdSeconds){
-        final double TOLERANCE_MM = 10;
+        //final double TOLERANCE_DG = 3;
 
         /*
          * Here we establish the number of mm that our drive wheels need to cover to create the
@@ -508,29 +590,94 @@ public class StarterBotAuto extends OpMode
          * need to travel, we just need to multiply the requested angle in radians by the radius
          * of our turning circle.
          */
-        double targetMm = angleUnit.toRadians(angle)*(TRACK_WIDTH_MM/2);
+        //double targetMm = angleUnit.toRadians(angle)*(TRACK_WIDTH_MM/2);
 
         /*
          * We need to set the left motor to the inverse of the target so that we rotate instead
          * of driving straight.
          */
-        double leftTargetPosition = -(targetMm*TICKS_PER_MM);
-        double rightTargetPosition = targetMm*TICKS_PER_MM;
+        //double leftTargetPosition = -(targetMm*TICKS_PER_MM);
+        //double rightTargetPosition = targetMm*TICKS_PER_MM;
 
-        leftDrive.setTargetPosition((int) leftTargetPosition);
-        rightDrive.setTargetPosition((int) rightTargetPosition);
+        //leftDrive.setTargetPosition((int) leftTargetPosition);
+        //rightDrive.setTargetPosition((int) rightTargetPosition);
 
-        leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        //leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        //rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        leftDrive.setPower(speed);
+        /*leftDrive.setPower(speed);
         rightDrive.setPower(speed);
+        
+        telemetry.addData("Navx heading:", navx.getHeading());
+        telemetry.addData("Navx degrees:", navx.getHeading().getDegrees());
 
-        if((Math.abs(leftTargetPosition - leftDrive.getCurrentPosition())) > (TOLERANCE_MM * TICKS_PER_MM)){
+        packet.put("NavxHeading", navx.getHeading());
+        packet.put("NavxDegrees", navx.getHeading().getDegrees());
+
+        if((Math.abs(angle - navx.getHeading().getDegrees())) < (TOLERANCE_DG)){
+            leftDrive.setPower(0.0);
+            rightDrive.setPower(0.0);
             driveTimer.reset();
+            telemetry.addLine("Done rotating!");
+            telemetry.addData("Navx heading:", navx.getHeading());
+            telemetry.addData("Navx degrees:", navx.getHeading().getDegrees());
+            packet.put("NavxHeading", navx.getHeading());
+            packet.put("NavxDegrees", navx.getHeading().getDegrees());
         }
 
-        return (driveTimer.seconds() > holdSeconds);
+
+        return (driveTimer.seconds() > holdSeconds);*/
+
+        TARGET_ANGLE_DEGREES = angle;
+
+        yawPIDController.setSetpoint(TARGET_ANGLE_DEGREES);
+        yawPIDController.setContinuous(true);
+        yawPIDController.setOutputRange(MIN_MOTOR_OUTPUT_VALUE, MAX_MOTOR_OUTPUT_VALUE);
+        yawPIDController.setTolerance(navXPIDController.ToleranceType.ABSOLUTE, TOLERANCE_DEGREES);
+        yawPIDController.setPID(YAW_PID_P, YAW_PID_I, YAW_PID_D);
+
+        navx.zeroYaw();
+
+        try {
+            yawPIDController.enable(true);
+
+        /* Wait for new Yaw PID output values, then update the motors
+           with the new PID value with each new output value.
+         */
+
+            final double TOTAL_RUN_TIME_SECONDS = 30.0;
+            int DEVICE_TIMEOUT_MS = 500;
+            navXPIDController.PIDResult yawPIDResult = new navXPIDController.PIDResult();
+
+            DecimalFormat df = new DecimalFormat("#.##");
+
+            while ( (runtime.time() < TOTAL_RUN_TIME_SECONDS) &&
+                    !Thread.currentThread().isInterrupted()) {
+                if (yawPIDController.waitForNewUpdate(yawPIDResult, DEVICE_TIMEOUT_MS)) {
+                    if (yawPIDResult.isOnTarget()) {
+                        leftDrive.setPower(0.0);
+                        rightDrive.setPower(0.0);
+                        telemetry.addData("PIDOutput", df.format(0.00));
+                        return true;
+                    } else {
+                        double output = yawPIDResult.getOutput();
+                        leftDrive.setPower(output);
+                        rightDrive.setPower(-output);
+                        telemetry.addData("PIDOutput", df.format(output) + ", " +
+                                df.format(-output));
+                    }
+                } else {
+                    /* A timeout occurred */
+                    Log.w("navXRotateOp", "Yaw PID waitForNewUpdate() TIMEOUT.");
+                }
+                telemetry.addData("Yaw", df.format(navx.getYaw()));
+            }
+        }
+        catch(InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        return false;
     }
 }
 
