@@ -18,6 +18,11 @@ apply from: '../build.dependencies.gradle'
 android {
     namespace = 'org.firstinspires.ftc.teamcode'
 
+    compileSdk 35
+    defaultConfig {
+        minSdk 24
+    }
+
     packagingOptions {
         jniLibs.useLegacyPackaging true
     }
@@ -33,4 +38,5 @@ dependencies {
     implementation project(':FtcRobotController')
     implementation (name:'navx_ftc-release', ext:'aar')
     implementation 'org.ftclib.ftclib:core:2.1.1' // core
+    implementation "com.bylazar:fullpanels:1.0.6"
 }
