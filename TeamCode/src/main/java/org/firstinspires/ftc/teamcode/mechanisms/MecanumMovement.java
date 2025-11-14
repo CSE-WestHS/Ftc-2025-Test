@@ -1,21 +1,24 @@
 package org.firstinspires.ftc.teamcode.mechanisms;
 
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class MecanumMovement {
     private DcMotor frontLeftMotor, backLeftMotor, frontRightMotor, backRightMotor;
-    private GyroInterface navx;
+    //private GyroInterface navx;
+    private IMU imu;
 
     public void init(HardwareMap hardwareMap, Telemetry telemetry) {
         frontLeftMotor = hardwareMap.get(DcMotor.class, "front_left_drive");
         backLeftMotor = hardwareMap.get(DcMotor.class, "back_left_drive");
         frontRightMotor = hardwareMap.get(DcMotor.class, "front_right_drive");
-        backLeftMotor = hardwareMap.get(DcMotor.class, "back_right_drive");
+        backRightMotor = hardwareMap.get(DcMotor.class, "back_right_drive");
 
         frontLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -25,10 +28,21 @@ public class MecanumMovement {
         frontRightMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backRightMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        navx.init(hardwareMap, telemetry);
+        //navx.init(hardwareMap, telemetry);
+        imu = hardwareMap.get(IMU.class, "imu");
+
+        RevHubOrientationOnRobot RevOrientation = new RevHubOrientationOnRobot(
+                RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD
+        );
+
+        imu.initialize(new IMU.Parameters(RevOrientation));
     }
 
     public void drive(double forward, double strafe, double rotate) {
+        forward *= forward;
+        strafe *= strafe;
+        rotate *= rotate;
         double frontLeftPower = forward + strafe + rotate;
         double backLeftPower = forward - strafe + rotate;
         double frontRightPower = forward - strafe - rotate;
@@ -58,8 +72,11 @@ public class MecanumMovement {
         double theta = Math.atan2(forward, strafe);
         double r = Math.hypot(strafe, forward);
 
+        //theta = AngleUnit.normalizeRadians(theta -
+        //        navx.getHeading().getRadians());
+
         theta = AngleUnit.normalizeRadians(theta -
-                navx.getHeading().getRadians());
+                imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS)) + 1.57;
 
         double newForward = r * Math.sin(theta);
         double newStrafe = r * Math.cos(theta);

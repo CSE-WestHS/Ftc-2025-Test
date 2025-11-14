@@ -46,9 +46,7 @@ import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.vision.VisionPortal;
 
 /*
  * This file includes a teleop (driver-controlled) file for the goBILDA® StarterBot for the
@@ -138,15 +136,6 @@ public class StarterBotTeleop extends OpMode {
     @Override
     public void init() {
         launchState = LaunchState.IDLE;
-
-        final StarterBotAprilTagLocalization.CameraStreamProcessor processor = new StarterBotAprilTagLocalization.CameraStreamProcessor();
-
-        new VisionPortal.Builder()
-                .addProcessor(processor)
-                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
-                .build();
-
-        FtcDashboard.getInstance().startCameraStream(processor, 0);
 
         /*
          * Initialize the hardware variables. Note that the strings used here as parameters

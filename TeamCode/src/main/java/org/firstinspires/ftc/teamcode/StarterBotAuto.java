@@ -34,8 +34,6 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
-import android.util.Log;
-
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.kauailabs.navx.ftc.AHRS;
@@ -50,10 +48,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-
-import java.text.DecimalFormat;
 
 
 /*
@@ -171,6 +166,8 @@ public class StarterBotAuto extends OpMode
 
     private AutonomousState autonomousState;
 
+    boolean rotationStarted = false;
+
     /*
      * Here we create an enum not to create a state machine, but to capture which alliance we are on.
      */
@@ -206,6 +203,10 @@ public class StarterBotAuto extends OpMode
     private final double YAW_PID_D = 0.0;
 
     private boolean calibration_complete = false;
+
+    double angleToRotate = 0;
+
+    navXPIDController.PIDResult yawPIDResult;
 
     /*
      * This code runs ONCE when the driver hits INIT.
@@ -391,16 +392,16 @@ public class StarterBotAuto extends OpMode
              * allowing it to cycle through and continue the process of launching the first ball.
              */
             case ROTATE_TO_GOAL:
-                if(alliance == Alliance.RED){
-                    robotRotationAngle = 40;
-                } else if (alliance == Alliance.BLUE){
-                    robotRotationAngle = -50;
-                }
+                angleToRotate = (alliance == Alliance.RED) ? 40 : -50;
 
-                if(rotate(ROTATE_SPEED, robotRotationAngle, AngleUnit.DEGREES,1)){
-                    leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                    rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                    autonomousState = AutonomousState.LAUNCH;
+                try {
+                    if(rotate(angleToRotate)){
+                        leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        autonomousState = AutonomousState.LAUNCH;
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
                 break;
             case LAUNCH:
@@ -434,16 +435,16 @@ public class StarterBotAuto extends OpMode
                 break;
 
             case ROTATING:
-                if(alliance == Alliance.RED){
-                    robotRotationAngle = -45;
-                } else if (alliance == Alliance.BLUE){
-                    robotRotationAngle = 45;
-                }
+                angleToRotate = (alliance == Alliance.RED) ? -40 : 50;
 
-                if(rotate(ROTATE_SPEED, robotRotationAngle, AngleUnit.DEGREES,1)){
-                    leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                    rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                    autonomousState = AutonomousState.DRIVING_OFF_LINE;
+                try {
+                    if(rotate(angleToRotate)){
+                        leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        autonomousState = AutonomousState.DRIVING_OFF_LINE;
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
                 break;
 
@@ -565,119 +566,77 @@ public class StarterBotAuto extends OpMode
          */
         if(Math.abs(targetPosition - leftDrive.getCurrentPosition()) > (TOLERANCE_MM * TICKS_PER_MM)){
             driveTimer.reset();
+            telemetry.addLine("You shouldn't see this");
         }
+
+        telemetry.addData("driveTimer", driveTimer.seconds());
+
+        telemetry.addData("complete?", driveTimer.seconds() > holdSeconds);
 
         return (driveTimer.seconds() > holdSeconds);
     }
+    // Keep track of whether we've started the rotation process
 
-    /**
-     * @param speed From 0-1
-     * @param angle the amount that the robot should rotate
-     * @param angleUnit the unit that angle is in
-     * @param holdSeconds the number of seconds to wait at position before returning true.
-     * @return True if the motors are within tolerance of the target position for more than
-     *         holdSeconds. False otherwise.
-     */
-    boolean rotate(double speed, double angle, AngleUnit angleUnit, double holdSeconds){
-        //final double TOLERANCE_DG = 3;
+    // New non-blocking function that returns true when done
+    public boolean rotate(double relativeAngle) throws InterruptedException {
+        final double ROTATION_TIMEOUT_SECONDS = 4.0; // safety timeout
+        // Initialization that runs once per rotation
+        if (!rotationStarted) {
+            // compute absolute target = current yaw + relativeAngle
+            // navx.getYaw() returns -180..+180; navXPIDController is continuous so wrap is handled
+            double currentYaw = navx.getYaw();
+            double absoluteTarget = currentYaw + relativeAngle;
 
-        /*
-         * Here we establish the number of mm that our drive wheels need to cover to create the
-         * requested angle. We use radians here because it makes the math much easier.
-         * Our robot will have rotated one radian when the wheels of the robot have driven
-         * 1/2 of the track width of our robot in a circle. This is also the radius of the circle
-         * that the robot tracks when it is rotating. So, to find the number of mm that our wheels
-         * need to travel, we just need to multiply the requested angle in radians by the radius
-         * of our turning circle.
-         */
-        //double targetMm = angleUnit.toRadians(angle)*(TRACK_WIDTH_MM/2);
-
-        /*
-         * We need to set the left motor to the inverse of the target so that we rotate instead
-         * of driving straight.
-         */
-        //double leftTargetPosition = -(targetMm*TICKS_PER_MM);
-        //double rightTargetPosition = targetMm*TICKS_PER_MM;
-
-        //leftDrive.setTargetPosition((int) leftTargetPosition);
-        //rightDrive.setTargetPosition((int) rightTargetPosition);
-
-        //leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        //rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-        /*leftDrive.setPower(speed);
-        rightDrive.setPower(speed);
-        
-        telemetry.addData("Navx heading:", navx.getHeading());
-        telemetry.addData("Navx degrees:", navx.getHeading().getDegrees());
-
-        packet.put("NavxHeading", navx.getHeading());
-        packet.put("NavxDegrees", navx.getHeading().getDegrees());
-
-        if((Math.abs(angle - navx.getHeading().getDegrees())) < (TOLERANCE_DG)){
-            leftDrive.setPower(0.0);
-            rightDrive.setPower(0.0);
-            driveTimer.reset();
-            telemetry.addLine("Done rotating!");
-            telemetry.addData("Navx heading:", navx.getHeading());
-            telemetry.addData("Navx degrees:", navx.getHeading().getDegrees());
-            packet.put("NavxHeading", navx.getHeading());
-            packet.put("NavxDegrees", navx.getHeading().getDegrees());
-        }
-
-
-        return (driveTimer.seconds() > holdSeconds);*/
-
-        TARGET_ANGLE_DEGREES = angle;
-
-        yawPIDController.setSetpoint(TARGET_ANGLE_DEGREES);
-        yawPIDController.setContinuous(true);
-        yawPIDController.setOutputRange(MIN_MOTOR_OUTPUT_VALUE, MAX_MOTOR_OUTPUT_VALUE);
-        yawPIDController.setTolerance(navXPIDController.ToleranceType.ABSOLUTE, TOLERANCE_DEGREES);
-        yawPIDController.setPID(YAW_PID_P, YAW_PID_I, YAW_PID_D);
-
-        navx.zeroYaw();
-
-        try {
+            // make sure PID sees the right setpoint (absolute)
+            yawPIDController.setSetpoint(absoluteTarget);
             yawPIDController.enable(true);
 
-        /* Wait for new Yaw PID output values, then update the motors
-           with the new PID value with each new output value.
-         */
+            // reset timeout timer
+            driveTimer.reset();
+            yawPIDResult = new navXPIDController.PIDResult();
+            rotationStarted = true;
 
-            final double TOTAL_RUN_TIME_SECONDS = 30.0;
-            int DEVICE_TIMEOUT_MS = 500;
-            navXPIDController.PIDResult yawPIDResult = new navXPIDController.PIDResult();
+            telemetry.addData("Rotate Init", "cur=%.2f rel=%.2f abs=%.2f", currentYaw, relativeAngle, absoluteTarget);
+        }
 
-            DecimalFormat df = new DecimalFormat("#.##");
+        // Keep motors in a RUN_USING_ENCODER mode while using PID output
+        leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-            while ( (runtime.time() < TOTAL_RUN_TIME_SECONDS) &&
-                    !Thread.currentThread().isInterrupted()) {
-                if (yawPIDController.waitForNewUpdate(yawPIDResult, DEVICE_TIMEOUT_MS)) {
-                    if (yawPIDResult.isOnTarget()) {
-                        leftDrive.setPower(0.0);
-                        rightDrive.setPower(0.0);
-                        telemetry.addData("PIDOutput", df.format(0.00));
-                        return true;
-                    } else {
-                        double output = yawPIDResult.getOutput();
-                        leftDrive.setPower(output);
-                        rightDrive.setPower(-output);
-                        telemetry.addData("PIDOutput", df.format(output) + ", " +
-                                df.format(-output));
-                    }
-                } else {
-                    /* A timeout occurred */
-                    Log.w("navXRotateOp", "Yaw PID waitForNewUpdate() TIMEOUT.");
-                }
-                telemetry.addData("Yaw", df.format(navx.getYaw()));
+        telemetry.addData("Target", yawPIDController.getSetpoint());
+        telemetry.addData("Current Yaw", navx.getYaw());
+
+        // Ask the navx PID for an update (50ms timeout for new update)
+        if (yawPIDController.waitForNewUpdate(yawPIDResult, 50)) {
+            if (yawPIDResult.isOnTarget()) {
+                // reached the target -> stop motors, disable, and reset flags
+                leftDrive.setPower(0.0);
+                rightDrive.setPower(0.0);
+                yawPIDController.enable(false);
+                rotationStarted = false;
+                return true;
+            } else {
+                double output = yawPIDResult.getOutput();
+                leftDrive.setPower(output);
+                rightDrive.setPower(-output);
+
+                telemetry.addData("PID Output", output);
             }
+        } else {
+            telemetry.addLine("No new yaw update (waitForNewUpdate timed out)");
         }
-        catch(InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            return false;
+
+        // Timeout safety: if we hang too long, stop and bail out
+        if (driveTimer.seconds() > ROTATION_TIMEOUT_SECONDS) {
+            telemetry.addData("Rotate", "TIMED OUT after %.2fs", driveTimer.seconds());
+            leftDrive.setPower(0.0);
+            rightDrive.setPower(0.0);
+            yawPIDController.enable(false);
+            rotationStarted = false;
+            return true; // return true to allow the state machine to continue despite timeout
         }
-        return false;
+
+        return false; // still rotating
     }
 }
 
