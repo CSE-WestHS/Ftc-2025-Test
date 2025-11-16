@@ -392,7 +392,7 @@ public class StarterBotAuto extends OpMode
              * allowing it to cycle through and continue the process of launching the first ball.
              */
             case ROTATE_TO_GOAL:
-                angleToRotate = (alliance == Alliance.RED) ? 40 : -50;
+                angleToRotate = (alliance == Alliance.RED) ? 43 : -48;
 
                 try {
                     if(rotate(angleToRotate)){
@@ -435,7 +435,8 @@ public class StarterBotAuto extends OpMode
                 break;
 
             case ROTATING:
-                angleToRotate = (alliance == Alliance.RED) ? -40 : 50;
+                angleToRotate = (alliance == Alliance.RED) ? -50 : 60;
+                if (startingPosition == StartingPosition.FAR) angleToRotate = 0;
 
                 try {
                     if(rotate(angleToRotate)){
@@ -585,7 +586,10 @@ public class StarterBotAuto extends OpMode
             // compute absolute target = current yaw + relativeAngle
             // navx.getYaw() returns -180..+180; navXPIDController is continuous so wrap is handled
             double currentYaw = navx.getYaw();
-            double absoluteTarget = currentYaw + relativeAngle;
+            double absoluteTarget = relativeAngle; // changing it to absolute angle whatever
+
+            leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
             // make sure PID sees the right setpoint (absolute)
             yawPIDController.setSetpoint(absoluteTarget);
@@ -617,8 +621,8 @@ public class StarterBotAuto extends OpMode
                 return true;
             } else {
                 double output = yawPIDResult.getOutput();
-                leftDrive.setPower(output);
-                rightDrive.setPower(-output);
+                leftDrive.setPower(-output);
+                rightDrive.setPower(output);
 
                 telemetry.addData("PID Output", output);
             }

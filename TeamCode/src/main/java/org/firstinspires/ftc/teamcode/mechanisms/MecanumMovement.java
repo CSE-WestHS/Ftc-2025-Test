@@ -1,5 +1,8 @@
 package org.firstinspires.ftc.teamcode.mechanisms;
 
+import static com.arcrobotics.ftclib.purepursuit.PurePursuitUtil.angleWrap;
+
+import com.arcrobotics.ftclib.controller.PIDController;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -8,11 +11,17 @@ import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
 public class MecanumMovement {
     private DcMotor frontLeftMotor, backLeftMotor, frontRightMotor, backRightMotor;
-    //private GyroInterface navx;
+    private GyroInterface navx;
     private IMU imu;
+
+    private PIDController headingPID;
+
+    Pose2D robotPosition;
 
     public void init(HardwareMap hardwareMap, Telemetry telemetry) {
         frontLeftMotor = hardwareMap.get(DcMotor.class, "front_left_drive");
@@ -37,6 +46,13 @@ public class MecanumMovement {
         );
 
         imu.initialize(new IMU.Parameters(RevOrientation));
+
+        headingPID = new PIDController(1.2, 0, 0.05);  // P, I, D — adjust as needed
+
+        // Optional: reduce output sensitivity
+        headingPID.setIntegrationBounds(-0.3, 0.3);
+        headingPID.setTolerance(Math.toRadians(3));  // 3° tolerance
+
     }
 
     public void drive(double forward, double strafe, double rotate) {
@@ -82,5 +98,31 @@ public class MecanumMovement {
         double newStrafe = r * Math.cos(theta);
 
         this.drive(newForward, newStrafe, rotate);
+    }
+
+    /**
+     *
+     * @param position -- position to lock onto
+     */
+    public void driveFacingPoint(double forward, double strafe, Pose2D position) {
+        robotPosition = navx.getPosition();
+
+        double goalHeadingR = Math.atan2(
+                (position.getY(DistanceUnit.INCH) - robotPosition.getY(DistanceUnit.INCH)),
+                (position.getX(DistanceUnit.INCH) - robotPosition.getX(DistanceUnit.INCH))
+        );
+
+        double currentHeading = navx.getHeading().getRadians();
+        double error = angleWrap(goalHeadingR - currentHeading);
+
+        double turnPower = headingPID.calculate(error);
+
+        turnPower = Math.max(-1, Math.min(1, turnPower));
+
+        if (headingPID.atSetPoint()) {
+            turnPower = 0;
+        }
+
+        driveFieldRelative(forward, strafe, turnPower);
     }
 }

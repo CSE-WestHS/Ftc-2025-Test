@@ -34,8 +34,9 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
-import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
+import com.bylazar.configurables.annotations.Configurable;
+import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -64,10 +65,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
  */
 
 @TeleOp(name = "StarterBotTeleop", group = "StarterBot")
+@Configurable
 //@Disabled
 public class StarterBotTeleop extends OpMode {
-    FtcDashboard dashboard = FtcDashboard.getInstance();
-    TelemetryPacket packet = new TelemetryPacket();
+    private static TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
     final double FEED_TIME_SECONDS = 0.25; //The feeder servos run this long when a shot is requested.
     final double STOP_SPEED = 0.0; //We send this power to the servos when we want them to stop.
@@ -237,7 +238,7 @@ public class StarterBotTeleop extends OpMode {
         } else if (gamepad1.b) { // stop flywheel
             launcher.setVelocity(STOP_SPEED);
         }
-        
+
         /*if (gamepad1.x) {
             launcher.setVelocity(1000);
         } else {
@@ -259,12 +260,11 @@ public class StarterBotTeleop extends OpMode {
 
         if (launcher.getVelocity() > 1) telemetry.addLine("!!!!LAUNCHER IS ON!!!!");
 
-        packet.put("goalVelocity", LAUNCHER_TARGET_VELOCITY);
-        packet.put("realVelocity", launcher.getVelocity());
-        packet.put("distanceToGoal", frontSensor.getDistance(DistanceUnit.INCH));
+        panelsTelemetry.addData("goalVelocity", LAUNCHER_TARGET_VELOCITY);
+        panelsTelemetry.addData("realVelocity", launcher.getVelocity());
+        panelsTelemetry.addData("distanceToGoal", frontSensor.getDistance(DistanceUnit.INCH));
 
-
-        dashboard.sendTelemetryPacket(packet);
+        panelsTelemetry.update(telemetry);
     }
 
     /*
