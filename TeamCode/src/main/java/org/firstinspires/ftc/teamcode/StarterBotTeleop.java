@@ -72,7 +72,7 @@ public class StarterBotTeleop extends OpMode {
 
     final double FEED_TIME_SECONDS = 0.25; //The feeder servos run this long when a shot is requested.
     final double STOP_SPEED = 0.0; //We send this power to the servos when we want them to stop.
-    final double FULL_SPEED = 1.0;
+    final double FULL_SPEED = 0.8; // ugh. its like. the servos. i guess.
 
     final double DRIVE_SPEED = 0.8;
 

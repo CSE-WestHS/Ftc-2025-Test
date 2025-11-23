@@ -2,48 +2,92 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
-import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
+import android.annotation.SuppressLint;
+
+import com.bylazar.configurables.annotations.Configurable;
+import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp(name = "Shooter Testing", group = "Testing")
 //@disabled
+@Configurable
 public class ShooterTestTeleop extends OpMode {
     private DcMotorEx launcher;
+    private DcMotorEx launcher2;
 
-    FtcDashboard dashboard = FtcDashboard.getInstance();
-    TelemetryPacket packet = new TelemetryPacket();
+    public static int goalVelocity = 1000;
+    public static double percentageError = 0.97;
+
+    public static double closedPos = 0.0;
+    public static double openPos = 0.28;
+
+    public static double p = 50;
+    public static double i = 0.0;
+    public static double d = 0.0;
+    public static double f = 2;
+    private static TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
+
+    private Servo ballStopper;
 
     @Override
     public void init() {
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
+        launcher2 = hardwareMap.get(DcMotorEx.class, "launcher2");
+        ballStopper = hardwareMap.get(Servo.class, "ball_stopper");
+
+        ballStopper.setDirection(Servo.Direction.REVERSE);
 
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        launcher2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         launcher.setZeroPowerBehavior(BRAKE);
+        launcher2.setZeroPowerBehavior(BRAKE);
 
-        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(300, 0, 0, 10)); //new PIDFCoefficients(16, 18, 1, 0));
+        launcher.setDirection(DcMotorSimple.Direction.REVERSE);
+        launcher2.setDirection(DcMotorSimple.Direction.FORWARD);
 
+        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(p, i, d, f)); //new PIDFCoefficients(16, 18, 1, 0));
+        launcher2.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(p, i, d, f)); //new PIDFCoefficients(16, 18, 1, 0));
 
+        //graphManager.getConfig().invoke().setGraphUpdateInterval(50);
     }
 
+    @SuppressLint("DefaultLocale")
     @Override
     public void loop() {
+        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(p, i, d, f)); //new PIDFCoefficients(16, 18, 1, 0));
+        launcher2.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(p, i, d, f)); //new PIDFCoefficients(16, 18, 1, 0));
+
         if (gamepad1.right_bumper) {
-            launcher.setVelocity(5000, AngleUnit.DEGREES);
+            launcher.setVelocity(goalVelocity, AngleUnit.DEGREES);
+            launcher2.setVelocity(goalVelocity, AngleUnit.DEGREES);
         } else {
             launcher.setVelocity(0);
+            launcher2.setVelocity(0);
+        }
+        double launcherVel = (launcher.getVelocity()*60)/28;
+
+        if (launcherVel > goalVelocity*percentageError) {
+            ballStopper.setPosition(openPos);
+        } else {
+            ballStopper.setPosition(closedPos);
         }
 
-        packet.put("goalVelocity", 5000);//(5000*28)/60); // *28 and / 60 to turn from rpm to tps
-        packet.put("realVelocity", (launcher.getVelocity()*60)/28);
+        panelsTelemetry.addData("goalVelocity", goalVelocity);//(5000*28)/60); // *28 and / 60 to turn from rpm to tps
+        panelsTelemetry.addData("realVelocity", (launcher.getVelocity()*60)/28);
+        panelsTelemetry.addData("realVelocity2", (launcher2.getVelocity()*60)/28);
 
-        dashboard.sendTelemetryPacket(packet);
+        panelsTelemetry.addLine(String.format("goalVelocity = %d, realVelocity = %f, realVelocity2 = %f", goalVelocity, (launcher.getVelocity()*60)/28, (launcher2.getVelocity()*60)/28));//(5000*28)/60); // *28 and / 60 to turn from rpm to tps
+
+        panelsTelemetry.update(telemetry);
     }
 }
