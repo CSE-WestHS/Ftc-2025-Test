@@ -237,6 +237,8 @@ public class StarterBotTeleop extends OpMode {
             launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
         } else if (gamepad1.b) { // stop flywheel
             launcher.setVelocity(STOP_SPEED);
+            leftFeeder.setPower(STOP_SPEED);
+            rightFeeder.setPower(STOP_SPEED);
         }
 
         /*if (gamepad1.x) {
@@ -309,7 +311,7 @@ public class StarterBotTeleop extends OpMode {
                 launchState = LaunchState.LAUNCHING;
                 break;
             case LAUNCHING:
-                if (feederTimer.seconds() > FEED_TIME_SECONDS) {
+                if (launcher.getVelocity() < LAUNCHER_MIN_VELOCITY) {//if (feederTimer.seconds() > FEED_TIME_SECONDS) {
                     //if(shotTimer.seconds() > TIME_BETWEEN_SHOTS){
                     launchState = LaunchState.IDLE;
                     //}

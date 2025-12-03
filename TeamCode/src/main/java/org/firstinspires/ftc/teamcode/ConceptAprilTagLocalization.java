@@ -29,6 +29,10 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import android.annotation.SuppressLint;
+
+import com.bylazar.field.FieldManager;
+import com.bylazar.field.PanelsField;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -66,6 +70,8 @@ import java.util.List;
 @TeleOp(name = "Concept: AprilTag Localization", group = "Concept")
 //@Disabled
 public class ConceptAprilTagLocalization extends LinearOpMode {
+
+    private static final FieldManager fieldManager = PanelsField.INSTANCE.getField();
 
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
 
@@ -214,6 +220,7 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
     /**
      * Add telemetry about AprilTag detections.
      */
+    @SuppressLint("DefaultLocale")
     private void telemetryAprilTag() {
 
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
@@ -225,10 +232,20 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
                 telemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
                 // Only use tags that don't have Obelisk in them
                 if (!detection.metadata.name.contains("Obelisk")) {
-                    telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)",
-                            detection.robotPose.getPosition().x,
-                            detection.robotPose.getPosition().y,
-                            detection.robotPose.getPosition().z));
+                    double rx = detection.robotPose.getPosition().x;
+                    double ry = detection.robotPose.getPosition().y;
+                    double yawRad = detection.robotPose.getOrientation().getYaw(AngleUnit.RADIANS);
+
+                    telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", rx, ry, detection.robotPose.getPosition().z));
+
+                    // place the cursor + optional marker (existing behavior)
+                    fieldManager.moveCursor(rx, ry);
+                    //fieldManager.line(); // if you want a dot/line as you had
+
+                    // draw rectangle robot (choose size and color)
+                    // Example uses 18"x18" robot. Replace with your true dimensions.
+                    drawRobotRectOnPanels(rx, ry, yawRad, 18.0, 18.0, "#3F51B5");
+
                     telemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)",
                             detection.robotPose.getOrientation().getPitch(AngleUnit.DEGREES),
                             detection.robotPose.getOrientation().getRoll(AngleUnit.DEGREES),
@@ -243,7 +260,61 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
         // Add "key" information to telemetry
         telemetry.addLine("\nkey:\nXYZ = X (Right), Y (Forward), Z (Up) dist.");
         telemetry.addLine("PRY = Pitch, Roll & Yaw (XYZ Rotation)");
-
     }   // end method telemetryAprilTag()
+
+    /**
+     * Draw a rotated rectangle representing the robot on Panels Field using fieldManager.
+     *
+     * @param cx        center X (field coords, inches)
+     * @param cy        center Y (field coords, inches)
+     * @param heading   yaw in radians (field coord frame)
+     * @param width     width (side-to-side) in inches
+     * @param length    length (front-to-back) in inches
+     * @param colorHex  CSS hex color string, e.g. "#FF4081"
+     */
+    private void drawRobotRectOnPanels(double cx, double cy, double heading,
+                                       double width, double length, String colorHex) {
+        // half extents in local robot frame
+        double hw = width / 2;
+        double hl = length / 2;
+
+        // compute points in local robot frame
+        double[][] corners = {{-hw, hl}, {hw, hl}, {hw, -hl}, {-hw, -hl}};
+
+        for (int i = 0; i < corners.length; i++) {
+            corners[i] = rotateCoordinate(corners[i], heading);
+        }
+
+        for (int i = 0; i < corners.length; i++) {
+            corners[i][0] += cx;
+            corners[i][1] += cy;
+        }
+
+        fieldManager.setStyle("", colorHex, 1);
+
+        for (int i = 0; i < corners.length; i++) {
+            int next = (i+1)%corners.length;
+            fieldManager.moveCursor(corners[i][0], corners[i][1]);
+            fieldManager.line(corners[next][0], corners[next][1]);
+        }
+
+        double[] headingLine = rotateCoordinate(new double[]{0, hl}, heading);
+
+        fieldManager.moveCursor(cx, cy);
+        fieldManager.line(headingLine[0]+cx, headingLine[1]+cy);
+
+        // commit update to Panels
+        fieldManager.update();
+    }
+
+    private double[] rotateCoordinate(double[] xy, double heading) {
+        double x = xy[0];
+        double y = xy[1];
+
+        x = x*Math.cos(heading) - y*Math.sin(heading);
+        y = x*Math.sin(heading) + y*Math.cos(heading);
+
+        return new double[]{x, y};
+    }
 
 }   // end class

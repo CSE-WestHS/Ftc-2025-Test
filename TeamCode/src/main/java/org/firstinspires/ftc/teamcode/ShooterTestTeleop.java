@@ -15,8 +15,6 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-
 @TeleOp(name = "Shooter Testing", group = "Testing")
 //@disabled
 @Configurable
@@ -25,15 +23,15 @@ public class ShooterTestTeleop extends OpMode {
     private DcMotorEx launcher2;
 
     public static int goalVelocity = 1000;
-    public static double percentageError = 0.97;
+    public static double percentageError = 0.03;
 
     public static double closedPos = 0.0;
     public static double openPos = 0.28;
 
-    public static double p = 50;
+    public static double p = 10;
     public static double i = 0.0;
     public static double d = 0.0;
-    public static double f = 2;
+    public static double f = 12.5;
     private static TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
     private Servo ballStopper;
@@ -68,15 +66,15 @@ public class ShooterTestTeleop extends OpMode {
         launcher2.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(p, i, d, f)); //new PIDFCoefficients(16, 18, 1, 0));
 
         if (gamepad1.right_bumper) {
-            launcher.setVelocity(goalVelocity, AngleUnit.DEGREES);
-            launcher2.setVelocity(goalVelocity, AngleUnit.DEGREES);
+            launcher.setVelocity((double) (goalVelocity * 28) /60);
+            launcher2.setVelocity((double) (goalVelocity * 28) /60);
         } else {
             launcher.setVelocity(0);
             launcher2.setVelocity(0);
         }
         double launcherVel = (launcher.getVelocity()*60)/28;
 
-        if (launcherVel > goalVelocity*percentageError) {
+        if (launcherVel > goalVelocity*(1-percentageError) && launcherVel < goalVelocity*(1+percentageError)) {
             ballStopper.setPosition(openPos);
         } else {
             ballStopper.setPosition(closedPos);
@@ -87,6 +85,11 @@ public class ShooterTestTeleop extends OpMode {
         panelsTelemetry.addData("realVelocity2", (launcher2.getVelocity()*60)/28);
 
         panelsTelemetry.addLine(String.format("goalVelocity = %d, realVelocity = %f, realVelocity2 = %f", goalVelocity, (launcher.getVelocity()*60)/28, (launcher2.getVelocity()*60)/28));//(5000*28)/60); // *28 and / 60 to turn from rpm to tps
+
+        panelsTelemetry.addData("p", new PIDFCoefficients(p, i, d, f).p);
+        panelsTelemetry.addData("i", new PIDFCoefficients(p, i, d, f).i);
+        panelsTelemetry.addData("d", new PIDFCoefficients(p, i, d, f).d);
+        panelsTelemetry.addData("f", new PIDFCoefficients(p, i, d, f).f);
 
         panelsTelemetry.update(telemetry);
     }

@@ -435,7 +435,7 @@ public class StarterBotAuto extends OpMode
                 break;
 
             case ROTATING:
-                angleToRotate = (alliance == Alliance.RED) ? -50 : 60;
+                angleToRotate = (alliance == Alliance.RED) ? -45 : 45;
                 if (startingPosition == StartingPosition.FAR) angleToRotate = 0;
 
                 try {
@@ -450,7 +450,7 @@ public class StarterBotAuto extends OpMode
                 break;
 
             case DRIVING_OFF_LINE:
-                if(drive(DRIVE_SPEED, -35, DistanceUnit.INCH, 1)){
+                if(drive(DRIVE_SPEED, 35, DistanceUnit.INCH, 1)){
                     autonomousState = AutonomousState.COMPLETE;
                 }
                 break;

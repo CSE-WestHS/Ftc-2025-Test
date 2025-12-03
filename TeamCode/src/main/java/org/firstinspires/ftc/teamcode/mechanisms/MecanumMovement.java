@@ -7,23 +7,26 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.util.EkfPoseEstimator;
 
 public class MecanumMovement {
     private DcMotor frontLeftMotor, backLeftMotor, frontRightMotor, backRightMotor;
-    private GyroInterface navx;
-    private IMU imu;
+    private final GyroInterface navx = new GyroInterface();
+    //private IMU imu;
 
     private PIDController headingPID;
 
     Pose2D robotPosition;
 
+    private double[] previousPos;
+
     public void init(HardwareMap hardwareMap, Telemetry telemetry) {
+        previousPos = new double[]{0, 0, 0, 0};
         frontLeftMotor = hardwareMap.get(DcMotor.class, "front_left_drive");
         backLeftMotor = hardwareMap.get(DcMotor.class, "back_left_drive");
         frontRightMotor = hardwareMap.get(DcMotor.class, "front_right_drive");
@@ -37,15 +40,15 @@ public class MecanumMovement {
         frontRightMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backRightMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        //navx.init(hardwareMap, telemetry);
-        imu = hardwareMap.get(IMU.class, "imu");
+        navx.init(hardwareMap, telemetry);
+        //imu = hardwareMap.get(IMU.class, "imu");
 
         RevHubOrientationOnRobot RevOrientation = new RevHubOrientationOnRobot(
                 RevHubOrientationOnRobot.LogoFacingDirection.UP,
                 RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD
         );
 
-        imu.initialize(new IMU.Parameters(RevOrientation));
+        //imu.initialize(new IMU.Parameters(RevOrientation));
 
         headingPID = new PIDController(1.2, 0, 0.05);  // P, I, D — adjust as needed
 
@@ -88,11 +91,11 @@ public class MecanumMovement {
         double theta = Math.atan2(forward, strafe);
         double r = Math.hypot(strafe, forward);
 
-        //theta = AngleUnit.normalizeRadians(theta -
-        //        navx.getHeading().getRadians());
-
         theta = AngleUnit.normalizeRadians(theta -
-                imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS)) + 1.57;
+                navx.getHeading().getRadians());
+
+        //theta = AngleUnit.normalizeRadians(theta -
+        //        imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS)) + 1.57;
 
         double newForward = r * Math.sin(theta);
         double newStrafe = r * Math.cos(theta);
@@ -104,12 +107,11 @@ public class MecanumMovement {
      *
      * @param position -- position to lock onto
      */
-    public void driveFacingPoint(double forward, double strafe, Pose2D position) {
-        robotPosition = navx.getPosition();
+    public void driveFacingPoint(double forward, double strafe, Pose2D position, EkfPoseEstimator Pose) {
 
         double goalHeadingR = Math.atan2(
-                (position.getY(DistanceUnit.INCH) - robotPosition.getY(DistanceUnit.INCH)),
-                (position.getX(DistanceUnit.INCH) - robotPosition.getX(DistanceUnit.INCH))
+                (position.getY(DistanceUnit.METER) - Pose.getY()),
+                (position.getX(DistanceUnit.METER) - Pose.getX())
         );
 
         double currentHeading = navx.getHeading().getRadians();
@@ -124,5 +126,21 @@ public class MecanumMovement {
         }
 
         driveFieldRelative(forward, strafe, turnPower);
+    }
+
+    public double[] getDriveDistances() {
+        double[] output = new double[4];
+
+        output[0] = previousPos[0] - frontRightMotor.getCurrentPosition();// Front Right Motor dist
+        output[1] = previousPos[1] - frontLeftMotor.getCurrentPosition();// Front Left Motor dist
+        output[2] = previousPos[2] - backRightMotor.getCurrentPosition();// Back Right Motor dist
+        output[3] = previousPos[3] - backLeftMotor.getCurrentPosition();// Back Left Motor dist
+
+        previousPos[0] = frontRightMotor.getCurrentPosition();
+        previousPos[1] = frontLeftMotor.getCurrentPosition();
+        previousPos[2] = backRightMotor.getCurrentPosition();
+        previousPos[3] = backLeftMotor.getCurrentPosition();
+
+        return output;
     }
 }
