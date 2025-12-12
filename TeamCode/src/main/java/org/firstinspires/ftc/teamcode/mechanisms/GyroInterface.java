@@ -19,7 +19,7 @@ public class GyroInterface {
 
     private boolean calibration_complete = false;
 
-    private double yawOffset = 0.0;
+    private Rotation2d yawOffset = new Rotation2d(0.0);
 
     private Pose2D position = new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.RADIANS, 0);
 
@@ -57,22 +57,20 @@ public class GyroInterface {
     }
 
     public Rotation2d getHeading() {
-        return Rotation2d.fromDegrees(navx.getYaw() + yawOffset);
+        return Rotation2d.fromDegrees(navx.getYaw()).plus(yawOffset);
     }
 
     /**
      * Aligns the robot's internal heading and optionally position using an AprilTag reading.
      *
-     * @param detectedPose Pose2D from AprilTag detection. If null, only heading is aligned.
+     * @param detectedPose Rotation from AprilTag detection. If null, only heading is aligned.
      */
-    public void alignHeadingWithVision(Pose2D detectedPose) {
+    public void alignHeadingWithVision(Rotation2d detectedPose) {
         if (detectedPose != null) {
-            // Update position
-            position = detectedPose;
 
             // Update heading
-            double currentYaw = navx.getYaw();
-            yawOffset = Math.toDegrees(detectedPose.getHeading(AngleUnit.RADIANS)) - currentYaw;
+            Rotation2d currentYaw = getHeading();
+            yawOffset = detectedPose.minus(currentYaw);
 
             // Reset velocity to prevent drift
             velocityX = 0;
@@ -82,10 +80,10 @@ public class GyroInterface {
 
     public void resetInternalYawToZero() {
         navx.zeroYaw(); // Resets the *internal* reference to 0
-        yawOffset = 0.0; // Reset our software offset too if zeroYaw() is used for a full reset.
+        yawOffset = Rotation2d.fromDegrees(0.0); // Reset our software offset too if zeroYaw() is used for a full reset.
     }
 
-    public void setYawOffset(double yawOffset) {
+    public void setYawOffset(Rotation2d yawOffset) {
         this.yawOffset = yawOffset;
     }
 
@@ -117,7 +115,7 @@ public class GyroInterface {
         velocityY = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, velocityY));
 
         // Rotate robot-centric velocity → field frame
-        double headingRad = Math.toRadians(navx.getYaw() + yawOffset);
+        double headingRad =  getHeading().plus(yawOffset).getRadians();  //Math.toRadians(navx.getYaw() + yawOffset);
         double cosH = Math.cos(headingRad);
         double sinH = Math.sin(headingRad);
         double fieldVelX = velocityX * cosH - velocityY * sinH;

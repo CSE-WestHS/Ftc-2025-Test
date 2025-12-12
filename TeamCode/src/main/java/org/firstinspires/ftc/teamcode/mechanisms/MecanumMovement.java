@@ -59,9 +59,9 @@ public class MecanumMovement {
     }
 
     public void drive(double forward, double strafe, double rotate) {
-        forward *= forward;
-        strafe *= strafe;
-        rotate *= rotate;
+        forward *= Math.abs(forward);
+        strafe *= Math.abs(strafe);
+        rotate *= Math.abs(rotate);
         double frontLeftPower = forward + strafe + rotate;
         double backLeftPower = forward - strafe + rotate;
         double frontRightPower = forward - strafe - rotate;
@@ -131,16 +131,32 @@ public class MecanumMovement {
     public double[] getDriveDistances() {
         double[] output = new double[4];
 
-        output[0] = previousPos[0] - frontRightMotor.getCurrentPosition();// Front Right Motor dist
-        output[1] = previousPos[1] - frontLeftMotor.getCurrentPosition();// Front Left Motor dist
-        output[2] = previousPos[2] - backRightMotor.getCurrentPosition();// Back Right Motor dist
-        output[3] = previousPos[3] - backLeftMotor.getCurrentPosition();// Back Left Motor dist
+        // Capture current positions
+        double currentFR = frontRightMotor.getCurrentPosition();
+        double currentFL = frontLeftMotor.getCurrentPosition();
+        double currentBR = backRightMotor.getCurrentPosition();
+        double currentBL = backLeftMotor.getCurrentPosition();
 
-        previousPos[0] = frontRightMotor.getCurrentPosition();
-        previousPos[1] = frontLeftMotor.getCurrentPosition();
-        previousPos[2] = backRightMotor.getCurrentPosition();
-        previousPos[3] = backLeftMotor.getCurrentPosition();
+        // Calculate the difference
+        output[0] = currentFR - previousPos[0]; // Front Right Motor dist
+        output[1] = currentFL - previousPos[1]; // Front Left Motor dist
+        output[2] = currentBR - previousPos[2]; // Back Right Motor dist
+        output[3] = currentBL - previousPos[3]; // Back Left Motor dist
+
+        // Update previous positions
+        previousPos[0] = currentFR;
+        previousPos[1] = currentFL;
+        previousPos[2] = currentBR;
+        previousPos[3] = currentBL;
+
+        // Scale by the meters per tick factor
+        final double METERS_PER_TICK = 0.0006077;
+        output[0] *= METERS_PER_TICK;
+        output[1] *= METERS_PER_TICK;
+        output[2] *= METERS_PER_TICK;
+        output[3] *= METERS_PER_TICK;
 
         return output;
     }
+
 }

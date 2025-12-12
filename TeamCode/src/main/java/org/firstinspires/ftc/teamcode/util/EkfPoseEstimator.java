@@ -218,8 +218,8 @@ public class EkfPoseEstimator {
 
     /* Getters */
 
-    public double getX() { return x[0]; }
-    public double getY() { return x[1]; }
+    public double getX() { return -x[0]*39.37; }
+    public double getY() { return -x[1]*39.37; }
     public double getTheta() { return x[2]; }
     public double[][] getCovariance() { return copy(P); }
 
