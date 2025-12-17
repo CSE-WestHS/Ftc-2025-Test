@@ -69,7 +69,7 @@ public class GyroInterface {
         if (detectedPose != null) {
 
             // Update heading
-            Rotation2d currentYaw = getHeading();
+            Rotation2d currentYaw = new Rotation2d(navx.getYaw());
             yawOffset = detectedPose.minus(currentYaw);
 
             // Reset velocity to prevent drift

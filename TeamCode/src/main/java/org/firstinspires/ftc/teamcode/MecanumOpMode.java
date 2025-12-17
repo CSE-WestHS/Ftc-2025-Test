@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.bylazar.field.FieldManager;
 import com.bylazar.field.PanelsField;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -30,6 +29,8 @@ public class MecanumOpMode extends OpMode {
 
     private EkfPoseEstimator PoseEstimator;
 
+    private Pose2D goalPos;
+
     @Override
     public void init() {
         mecanumController.init(hardwareMap, telemetry);
@@ -37,6 +38,7 @@ public class MecanumOpMode extends OpMode {
         gyroInterface.init(hardwareMap, telemetry);
         fieldManager.init();
         PoseEstimator = new EkfPoseEstimator(0, 0, 0, 18, 18);
+        goalPos = new Pose2D(DistanceUnit.INCH, 10, 10, AngleUnit.RADIANS, 0); // Replace with logic to get preferred goal or whatever
     }
 
     @Override
@@ -57,13 +59,19 @@ public class MecanumOpMode extends OpMode {
         }
         visionInterface.update();
         if (visionInterface.canSeeAprilTag()) {
-            PoseEstimator.updateWithVisionPose(visionInterface.getX(), visionInterface.getY());
-            gyroInterface.alignHeadingWithVision(new Rotation2d(PoseEstimator.getTheta()));
+            //PoseEstimator.updateWithVisionPose(visionInterface.getX(), visionInterface.getY());
+            //gyroInterface.alignHeadingWithVision(new Rotation2d(PoseEstimator.getTheta()));
         }
         PoseEstimator.updateWithImuHeading(gyroInterface.getHeading().getRadians());
         fieldManager.setStyle("#FF4081", "#FF4081", 5);
         fieldManager.moveCursor(PoseEstimator.getX(),PoseEstimator.getY());
         fieldManager.circle(10);
+        double x = PoseEstimator.getX() + 10 * Math.cos(PoseEstimator.getTheta());
+        double y = PoseEstimator.getY() + 10 * Math.sin(PoseEstimator.getTheta());
+        fieldManager.setStyle("00FF00", "00FF00", 5);
+        fieldManager.line(x, y);
+        fieldManager.setStyle("0000FF", "0000FF", 5);
+        fieldManager.line(goalPos.getX(DistanceUnit.INCH),goalPos.getY(DistanceUnit.INCH));
         fieldManager.update();
         //robotDrawing.drawRobotRectOnPanels(PoseEstimator.getX(), PoseEstimator.getY(), PoseEstimator.getTheta(), 18, 18, "#3F51B5", fieldManager);
         double[] driveDistances = mecanumController.getDriveDistances();
@@ -71,6 +79,7 @@ public class MecanumOpMode extends OpMode {
         telemetry.addData("X", PoseEstimator.getX());
         telemetry.addData("Y", PoseEstimator.getY());
         telemetry.addData("Theta", PoseEstimator.getTheta());
+        telemetry.addData("navx heading", gyroInterface.getHeading().getRadians());
         telemetry.update();
     }
 }
