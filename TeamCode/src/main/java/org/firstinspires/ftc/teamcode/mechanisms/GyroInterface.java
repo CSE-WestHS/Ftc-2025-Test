@@ -18,7 +18,7 @@ public class GyroInterface {
 
     private boolean calibration_complete = false;
 
-    private Rotation2d yawOffset = new Rotation2d(0.0);
+    private Rotation2d yawOffset = Rotation2d.fromDegrees(90);
 
     private Pose2D position = new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.RADIANS, 0);
 

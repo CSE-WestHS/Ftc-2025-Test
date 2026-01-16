@@ -21,8 +21,8 @@ public class Constants {
     public static VisionInterface visionInterface = new VisionInterface();
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(5) // put real mass in kg later
-            .forwardZeroPowerAcceleration(-84.015)
-            .lateralZeroPowerAcceleration(-140.600)
+            .forwardZeroPowerAcceleration(-107.132)
+            .lateralZeroPowerAcceleration(-169.632)
             .useSecondaryDrivePIDF(false)
             .useSecondaryHeadingPIDF(true)
             .useSecondaryTranslationalPIDF(true)
@@ -43,8 +43,8 @@ public class Constants {
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
             .useBrakeModeInTeleOp(true)
-            .xVelocity(56.953)
-            .yVelocity(57.968);
+            .xVelocity(50.857)
+            .yVelocity(43.490);
 
 
     public static DriveEncoderConstants localizerConstants = new DriveEncoderConstants()
@@ -56,10 +56,10 @@ public class Constants {
             .leftRearEncoderDirection(Encoder.REVERSE)
             .rightFrontEncoderDirection(Encoder.FORWARD)
             .rightRearEncoderDirection(Encoder.FORWARD)
-            .robotWidth(12.5)
-            .robotLength(9.5)
-            .forwardTicksToInches(0.00618)
-            .strafeTicksToInches(0.00649);
+            .robotWidth(15)
+            .robotLength(18)
+            .forwardTicksToInches(0.00659)
+            .strafeTicksToInches(0.00730);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         gyroInterface.init(hardwareMap);

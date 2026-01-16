@@ -2,7 +2,8 @@ package org.firstinspires.ftc.teamcode.mechanisms;
 
 import static com.arcrobotics.ftclib.purepursuit.PurePursuitUtil.angleWrap;
 
-import com.arcrobotics.ftclib.controller.PIDController;
+import com.arcrobotics.ftclib.controller.PIDFController;
+import com.arcrobotics.ftclib.geometry.Pose2d;
 import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.arcrobotics.ftclib.geometry.Translation2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
@@ -13,20 +14,22 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.util.EkfPoseEstimator;
+
 
 public class MecanumMovement {
     private DcMotor frontLeftMotor, backLeftMotor, frontRightMotor, backRightMotor;
     //private final GyroInterface navx = new GyroInterface();
     //private IMU imu;
 
-    public static PIDController headingPID;
+    public static PIDFController headingPIDF;
 
     Pose2D robotPosition;
 
     private double[] previousPos;
 
     public Telemetry telemetry;
+
+    private double previousTime = 0.0;
 
     public void init(HardwareMap hardwareMap, Telemetry telemetry) {
         previousPos = new double[]{0, 0, 0, 0};
@@ -59,11 +62,11 @@ public class MecanumMovement {
 
         //imu.initialize(new IMU.Parameters(RevOrientation));
 
-        headingPID = new PIDController(1.2, 0, 0.05);  // P, I, D — adjust as needed
+        headingPIDF = new PIDFController(0.8, 0, 0.05, 0.0);  // P, I, D — adjust as needed
 
         // Optional: reduce output sensitivity
-        headingPID.setIntegrationBounds(-0.3, 0.3);
-        headingPID.setTolerance(Math.toRadians(1));  // 3° tolerance
+        headingPIDF.setIntegrationBounds(-0.3, 0.3);
+        headingPIDF.setTolerance(Math.toRadians(3));  // 3° tolerance
 
     }
 
@@ -96,11 +99,17 @@ public class MecanumMovement {
      * @param strafe -- gamepad.left_stick_x
      * @param rotate -- gamepad.right_stick_x
      */
-    public void driveFieldRelative(double forward, double strafe, double rotate, Rotation2d heading) {
+    public void driveFieldRelative(double forward, double strafe, double rotate, Rotation2d heading, boolean redTeam) {
 
         Translation2d chassisSpeeds = new Translation2d(forward, strafe);
 
         chassisSpeeds.rotateBy(heading.times(-1));
+
+        if (redTeam) {
+            chassisSpeeds.rotateBy(Rotation2d.fromDegrees(90));
+        } else {
+            chassisSpeeds.rotateBy(Rotation2d.fromDegrees(-90));
+        }
 
         double newForward = forward * heading.getCos() + strafe * heading.getSin();
         double newStrafe = -forward * heading.getSin() + strafe * heading.getCos();
@@ -134,8 +143,8 @@ public class MecanumMovement {
      *
      * @param position -- position to lock onto
      */
-    public void driveFacingPoint(double forward, double strafe, Pose2D position, EkfPoseEstimator
-        Pose, Rotation2d heading) {
+    public void driveFacingPoint(double forward, double strafe, Pose2D position, Pose2d
+        Pose, Rotation2d heading, boolean redTeam) {
 
         double goalHeadingR = Math.atan2(
                 (position.getY(DistanceUnit.INCH) - Pose.getY()),
@@ -145,18 +154,21 @@ public class MecanumMovement {
         double currentHeading = heading.getRadians();
         double error = angleWrap(goalHeadingR - currentHeading);
 
-        double turnPower = headingPID.calculate(error);
+        double turnPower = headingPIDF.calculate(error);
 
         turnPower = Math.max(-0.8, Math.min(0.8, turnPower));
 
-        if (headingPID.atSetPoint()) {
+        if (headingPIDF.atSetPoint()) {
             turnPower = 0;
         }
 
-        driveFieldRelative(forward, strafe, turnPower, heading);
+        driveFieldRelative(forward, strafe, turnPower, heading, redTeam);
     }
 
-    public double[] getDriveDistances() {
+    public double[] getDriveVelocities() {
+        if (previousTime == 0.0) {
+            previousTime = (double) System.currentTimeMillis() * 1000;
+        }
         double[] output = new double[4];
 
         // Capture current positions
@@ -178,13 +190,37 @@ public class MecanumMovement {
         previousPos[3] = currentBL;
 
         // Scale by the meters per tick factor
-        final double METERS_PER_TICK = 0.0006077;
-        output[0] *= METERS_PER_TICK;
-        output[1] *= METERS_PER_TICK;
-        output[2] *= METERS_PER_TICK;
-        output[3] *= METERS_PER_TICK;
+        final double INCHES_PER_TICK = 0.00190352859;
+        output[0] *= INCHES_PER_TICK;
+        output[1] *= INCHES_PER_TICK;
+        output[2] *= INCHES_PER_TICK;
+        output[3] *= INCHES_PER_TICK;
+
+        // Calculate the time difference
+        double currentTime = (double) System.currentTimeMillis() * 1000;
+
+        output[0] /= (currentTime - previousTime);
+        output[1] /= (currentTime - previousTime);
+        output[2] /= (currentTime - previousTime);
+        output[3] /= (currentTime - previousTime);
+
+        previousTime = (double) System.currentTimeMillis() * 1000;
 
         return output;
     }
 
+    public void setHeadingPID(double p, double i, double d, double f) {
+        headingPIDF.setPIDF(p, i, d, f);
+    }
+
+    public double[] getHeadingPIDF() {
+        double[] output = new double[4];
+
+        output[0] = headingPIDF.getP();
+        output[1] = headingPIDF.getI();
+        output[2] = headingPIDF.getD();
+        output[3] = headingPIDF.getF();
+
+        return output;
+    }
 }

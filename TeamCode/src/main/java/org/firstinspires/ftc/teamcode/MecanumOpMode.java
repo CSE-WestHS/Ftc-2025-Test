@@ -44,19 +44,20 @@ public class MecanumOpMode extends OpMode {
     @Override
     public void loop() {
         if (gamepad1.left_bumper) {
-            mecanumController.driveFacingPoint(
+            /*mecanumController.driveFacingPoint(
                     -gamepad1.left_stick_y,
                     gamepad1.left_stick_x,
                     new Pose2D(DistanceUnit.INCH, 10, 10, AngleUnit.RADIANS, 0),
                     PoseEstimator,
                     gyroInterface.getHeading()
-            );
+            );*/
         } else {
             mecanumController.driveFieldRelative(
                     -gamepad1.left_stick_y,
                     gamepad1.left_stick_x,
                     gamepad1.right_stick_x,
-                    gyroInterface.getHeading()
+                    gyroInterface.getHeading(),
+                    false
             );
         }
         visionInterface.update();
@@ -76,8 +77,8 @@ public class MecanumOpMode extends OpMode {
         fieldManager.line(goalPos.getX(DistanceUnit.INCH),goalPos.getY(DistanceUnit.INCH));
         fieldManager.update();
         //robotDrawing.drawRobotRectOnPanels(PoseEstimator.getX(), PoseEstimator.getY(), PoseEstimator.getTheta(), 18, 18, "#3F51B5", fieldManager);
-        double[] driveDistances = mecanumController.getDriveDistances();
-        PoseEstimator.predict(driveDistances[1], driveDistances[0], driveDistances[3], driveDistances[2]);
+        //double[] driveDistances = mecanumController.getDriveDistances();
+        //PoseEstimator.predict(driveDistances[1], driveDistances[0], driveDistances[3], driveDistances[2]);
         telemetry.addData("X", PoseEstimator.getX());
         telemetry.addData("Y", PoseEstimator.getY());
         telemetry.addData("Theta", PoseEstimator.getTheta());

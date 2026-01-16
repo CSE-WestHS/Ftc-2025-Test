@@ -177,11 +177,11 @@ public class VisionInterface {
     }
 
     public double getX() {
-        return robotPosition.getX(DistanceUnit.METER);
+        return robotPosition.getX(DistanceUnit.INCH);
     }
 
     public double getY() {
-        return robotPosition.getY(DistanceUnit.METER);
+        return robotPosition.getY(DistanceUnit.INCH);
     }
 
     public void update() {

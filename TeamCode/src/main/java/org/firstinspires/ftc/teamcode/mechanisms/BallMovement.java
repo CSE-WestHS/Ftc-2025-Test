@@ -21,7 +21,7 @@ public class BallMovement {
     private DcMotorEx launcher;
     private DcMotorEx launcher2;
     private DcMotorEx intake;
-    public static double percentageError = 0.03;
+    public static double percentageError = 0.10;
 
     public static double closedPos = 0.0;
     public static double openPos = 0.28;
@@ -74,8 +74,10 @@ public class BallMovement {
         if (launcherVel > goalVelocity*(1-percentageError) && launcherVel < goalVelocity*(1+percentageError)) {
             //ballStopper.setPosition(openPos);
             telemetry.addLine("Ball can shoot");
+            intake.setPower(-0.5);
         } else {
             //ballStopper.setPosition(closedPos);
+            intake.setPower(0.0);
         }
     }
 
