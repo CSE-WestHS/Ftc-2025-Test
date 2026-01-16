@@ -5,12 +5,14 @@ import android.annotation.SuppressLint;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @TeleOp(name = "Test Graph")
 @Configurable
+@Disabled
 public class TestGraph extends OpMode {
     public final TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 

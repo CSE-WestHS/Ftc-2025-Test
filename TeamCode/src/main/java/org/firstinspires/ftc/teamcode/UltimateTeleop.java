@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.arcrobotics.ftclib.geometry.Rotation2d;
+import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.field.FieldManager;
 import com.bylazar.field.PanelsField;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -9,15 +10,18 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.mechanisms.BallMovement;
 import org.firstinspires.ftc.teamcode.mechanisms.GyroInterface;
 import org.firstinspires.ftc.teamcode.mechanisms.MecanumMovement;
 import org.firstinspires.ftc.teamcode.mechanisms.VisionInterface;
 import org.firstinspires.ftc.teamcode.util.EkfPoseEstimator;
 
-@TeleOp(name = "Mecanum Testing", group = "Testing")
-public class MecanumOpMode extends OpMode {
-
+@TeleOp(name = "Ultimate Teleop", group = "Final Bot")
+@Configurable
+public class UltimateTeleop extends OpMode {
     private final MecanumMovement mecanumController = new MecanumMovement();
+
+    private final BallMovement ballMovement = new BallMovement();
 
     private final VisionInterface visionInterface = new VisionInterface();
 
@@ -31,11 +35,14 @@ public class MecanumOpMode extends OpMode {
 
     private Pose2D goalPos;
 
+    public static int goalVelocity = 4000;
+
     @Override
     public void init() {
         mecanumController.init(hardwareMap, telemetry);
         visionInterface.init(hardwareMap);
         gyroInterface.init(hardwareMap);
+        ballMovement.init(hardwareMap, telemetry);
         fieldManager.init();
         PoseEstimator = new EkfPoseEstimator(0, 0, 0, 18, 18);
         goalPos = new Pose2D(DistanceUnit.INCH, 140, 140, AngleUnit.RADIANS, 0); // Replace with logic to get preferred goal or whatever
@@ -43,13 +50,19 @@ public class MecanumOpMode extends OpMode {
 
     @Override
     public void loop() {
-        if (gamepad1.left_bumper) {
+        if (gamepad1.dpad_down) {
             mecanumController.driveFacingPoint(
                     -gamepad1.left_stick_y,
                     gamepad1.left_stick_x,
                     new Pose2D(DistanceUnit.INCH, 10, 10, AngleUnit.RADIANS, 0),
                     PoseEstimator,
                     gyroInterface.getHeading()
+            );
+        } else if (gamepad1.dpad_up) {
+            mecanumController.drive(
+                    -gamepad1.left_stick_y,
+                    gamepad1.left_stick_x,
+                    gamepad1.right_stick_x
             );
         } else {
             mecanumController.driveFieldRelative(
@@ -59,6 +72,23 @@ public class MecanumOpMode extends OpMode {
                     gyroInterface.getHeading()
             );
         }
+
+        if (gamepad1.right_bumper) {
+            ballMovement.launch((double) (goalVelocity * 28) / 60);
+        } else if (gamepad1.y) {
+            ballMovement.setVelocity((double) (goalVelocity * 28) / 60);
+        } else {
+            ballMovement.setVelocity(0);
+        }
+
+        if (gamepad1.left_bumper) {
+            ballMovement.intake(1.0);
+        } else if (gamepad1.left_trigger > 0.5) {
+            ballMovement.intake(-1.0);
+        } else {
+            ballMovement.intake(0.0);
+        }
+
         visionInterface.update();
         if (visionInterface.canSeeAprilTag()) {
             PoseEstimator.updateWithVisionPose(visionInterface.getX(), visionInterface.getY());

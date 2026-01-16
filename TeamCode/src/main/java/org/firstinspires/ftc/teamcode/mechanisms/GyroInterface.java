@@ -1,12 +1,11 @@
 package org.firstinspires.ftc.teamcode.mechanisms;
 
+import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.kauailabs.navx.ftc.AHRS;
 import com.kauailabs.navx.ftc.navXPIDController;
 import com.qualcomm.hardware.kauailabs.NavxMicroNavigationSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.arcrobotics.ftclib.geometry.Rotation2d;
 
-import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
@@ -37,7 +36,7 @@ public class GyroInterface {
 
 
 
-    public void init(HardwareMap hardwareMap, Telemetry telemetry) {
+    public void init(HardwareMap hardwareMap) {
         navx = AHRS.getInstance(hardwareMap.get(NavxMicroNavigationSensor.class, "navx"),
                 AHRS.DeviceDataType.kProcessedData,
                 NAVX_DEVICE_UPDATE_RATE_HZ);
@@ -49,9 +48,6 @@ public class GyroInterface {
             the navX-Micro Yaw value until calibration is complete.
              */
             calibration_complete = !navx.isCalibrating();
-            if (!calibration_complete) {
-                telemetry.addData("navX-Micro", "Startup Calibration in Progress");
-            }
         }
         navx.zeroYaw();
     }
@@ -70,7 +66,9 @@ public class GyroInterface {
 
             // Update heading
             Rotation2d currentYaw = new Rotation2d(navx.getYaw());
-            yawOffset = detectedPose.minus(currentYaw);
+            if (yawOffset.minus(detectedPose.minus(currentYaw)).getDegrees() < 2) {
+                yawOffset = detectedPose.minus(currentYaw);
+            }
 
             // Reset velocity to prevent drift
             velocityX = 0;

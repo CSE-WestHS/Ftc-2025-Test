@@ -5,6 +5,7 @@ import android.util.Log;
 import com.kauailabs.navx.ftc.AHRS;
 import com.kauailabs.navx.ftc.navXPIDController;
 import com.qualcomm.hardware.kauailabs.NavxMicroNavigationSensor;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -24,7 +25,7 @@ import java.text.DecimalFormat;
  * for the navX-Model sensor should be used.
  */
 @TeleOp(name = "Starter Bot Gyro Testing", group = "Concept")
-// @Disabled Comment this in to remove this from the Driver Station OpMode List
+@Disabled // Comment this in to remove this from the Driver Station OpMode List
 public class StarterBotGyroTesting extends LinearOpMode {
     DcMotor leftMotor;
     DcMotor rightMotor;
