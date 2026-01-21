@@ -58,8 +58,8 @@ public class Constants {
             .rightRearEncoderDirection(Encoder.FORWARD)
             .robotWidth(15)
             .robotLength(18)
-            .forwardTicksToInches(0.00659)
-            .strafeTicksToInches(0.00730);
+            .forwardTicksToInches(0.00818)
+            .strafeTicksToInches(0.00806);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         gyroInterface.init(hardwareMap);

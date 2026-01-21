@@ -1,4 +1,4 @@
-/*package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -11,14 +11,18 @@ import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
-@Autonomous(name = "Mecanum Auto")
-@Configurable
-public class MecanumAuto extends OpMode {
+import org.firstinspires.ftc.teamcode.mechanisms.BallMovement;
+import org.firstinspires.ftc.teamcode.util.Conversions;
 
-    private TelemetryManager panelsTelemetry; // Panels Telemetry instance
-    public Follower follower; // Pedro Pathing follower instance
-    private int pathState; // Current autonomous path state (state machine)
-    private PedroAutonomous.Paths paths; // Paths defined in the Paths class
+@Autonomous(name = "Far Blue", group = "Far", preselectTeleOp = "Ultimate Teleop")
+@Configurable
+public class FarBlue extends OpMode {
+    private TelemetryManager panelsTelemetry;
+    public static Follower follower;
+    private static int pathState;
+    private Paths paths;
+
+    private BallMovement ballMovement;
 
     @Override
     public void init() {
@@ -27,7 +31,9 @@ public class MecanumAuto extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(new Pose(72, 8, Math.toRadians(90)));
 
-        paths = new PedroAutonomous.Paths(follower); // Build paths
+        paths = new Paths(follower); // Build paths
+
+        ballMovement.init(hardwareMap, telemetry);
 
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);
@@ -47,60 +53,54 @@ public class MecanumAuto extends OpMode {
     }
 
     public static class Paths {
-
-        public PathChain line1;
+        public PathChain Path1;
         public PathChain Path2;
-        public PathChain line3;
+        public PathChain Path3;
         public PathChain Path4;
 
         public Paths(Follower follower) {
-            line1 = follower
-                    .pathBuilder()
-                    .addPath(
-                            new BezierCurve(
-                                    new Pose(72.000, 72.000),
-                                    new Pose(83.178, 72.943),
-                                    new Pose(60.238, 67.568),
-                                    new Pose(120.000, 72.000)
+            Path1 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(56.000, 8.000),
+
+                                    new Pose(59.746, 18.205)
                             )
-                    )
-                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(180))
+                    ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(115))
+
                     .build();
 
-            Path2 = follower
-                    .pathBuilder()
-                    .addPath(
+            Path2 = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(120.000, 72.000),
-                                    new Pose(96.000, 24.000),
-                                    new Pose(72.000, 72.000)
+                                    new Pose(59.746, 18.205),
+                                    new Pose(59.807, 36.417),
+                                    new Pose(25.000, 35.000)
                             )
-                    )
-                    .setTangentHeadingInterpolation()
+                    ).setConstantHeadingInterpolation(Math.toRadians(180))
+
                     .build();
 
-            line3 = follower
-                    .pathBuilder()
-                    .addPath(
-                            new BezierCurve(
-                                    new Pose(72.000, 72.000),
-                                    new Pose(106.935, 83.327),
-                                    new Pose(78.347, 76.852),
-                                    new Pose(24.000, 72.000)
+            Path3 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(25.000, 35.000),
+
+                                    new Pose(59.659, 18.259)
                             )
-                    )
-                    .setConstantHeadingInterpolation(Math.toRadians(0))
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(115))
+
                     .build();
 
-            Path4 = follower
-                    .pathBuilder()
-                    .addPath(
-                            new BezierLine(new Pose(24.000, 72.000), new Pose(72.000, 72.000))
-                    )
-                    .setTangentHeadingInterpolation()
+            Path4 = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(59.659, 18.259),
+                                    new Pose(62.766, 62.861),
+                                    new Pose(24.234, 59.444)
+                            )
+                    ).setConstantHeadingInterpolation(Math.toRadians(180))
+
                     .build();
         }
     }
+
 
     public int autonomousPathUpdate() {
         // Add your state machine Here
@@ -109,7 +109,8 @@ public class MecanumAuto extends OpMode {
         switch (pathState) {
             case 0:
                 if (!follower.isBusy()) {
-                    follower.followPath(paths.line1);
+                    ballMovement.setVelocity(Conversions.RPMToTicks(4000));
+                    follower.followPath(paths.Path1);
                     setPathState(1);
                 }
                 break;
@@ -121,7 +122,7 @@ public class MecanumAuto extends OpMode {
                 break;
             case 2:
                 if (!follower.isBusy()) {
-                    follower.followPath(paths.line3);
+                    follower.followPath(paths.Path3);
                     setPathState(3);
                 }
                 break;
@@ -138,4 +139,6 @@ public class MecanumAuto extends OpMode {
     public void setPathState(int pState) {
         pathState = pState;
     }
-}*/
+
+
+}

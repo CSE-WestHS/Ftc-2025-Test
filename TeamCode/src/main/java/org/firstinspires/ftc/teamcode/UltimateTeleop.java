@@ -44,22 +44,26 @@ public class UltimateTeleop extends OpMode {
     public static int goalVelocity = 4000;
 
     Translation2d m_frontLeftLocation =
-            new Translation2d(0.381, 0.381);
+            new Translation2d(4.75, 6.25);
     Translation2d m_frontRightLocation =
-            new Translation2d(0.381, -0.381);
+            new Translation2d(4.75, -6.25);
     Translation2d m_backLeftLocation =
-            new Translation2d(-0.381, 0.381);
+            new Translation2d(-4.75, 0.381);
     Translation2d m_backRightLocation =
-            new Translation2d(-0.381, -0.381);
+            new Translation2d(-4.75, -0.381);
 
     MecanumDriveKinematics m_kinematics;
 
     MecanumDriveOdometry m_odometry;
 
-    public static double headingP = 0.8;
+    public static double headingP = 0.0;
     public static double headingI = 0.0;
-    public static double headingD = 0.05;
-    public static double headingF = 0.0;
+    public static double headingD = 0.0;
+    public static double headingF = 1.0;
+    public static double heading2P = 0.0;
+    public static double heading2I = 0.0;
+    public static double heading2D = 0.0;
+    public static double heading2F = 1.0;
 
     private enum Alliance {
         RED,
@@ -124,6 +128,15 @@ public class UltimateTeleop extends OpMode {
     @Override
     public void loop() {
         periodic(); // Update position
+        visionInterface.update();
+        if (visionInterface.canSeeAprilTag()) {
+            telemetry.addLine("Can see april tag rn!!!");
+            gyroInterface.alignHeadingWithVision(new Rotation2d(visionInterface.getHeading()));
+            m_odometry.resetPosition(visionInterface.getRobotPosition(), gyroInterface.getHeading());
+        }
+
+        mecanumController.setHeadingPIDF(headingP, headingI, headingD, headingF);
+        mecanumController.setHeadingPIDF(heading2P, heading2I, heading2D, heading2F);
         if (gamepad1.right_trigger > 0.2) {
             mecanumController.driveFacingPoint(
                     -gamepad1.left_stick_y,
@@ -168,12 +181,6 @@ public class UltimateTeleop extends OpMode {
         } else {
             ballMovement.intake(0.0);
         }
-        visionInterface.update();
-        if (visionInterface.canSeeAprilTag()) {
-            telemetry.addLine("Can see april tag rn!!!");
-            //PoseEstimator.updateWithVisionPose(visionInterface.getX(), visionInterface.getY());
-            gyroInterface.alignHeadingWithVision(new Rotation2d(visionInterface.getHeading()));
-        }
         //PoseEstimator.updateWithImuHeading(gyroInterface.getHeading().getRadians());
         fieldManager.setStyle("#FF4081", "#FF4081", 5);
         //fieldManager.moveCursor(PoseEstimator.getX(),PoseEstimator.getY());
@@ -195,8 +202,6 @@ public class UltimateTeleop extends OpMode {
         telemetry.addData("Y", m_pose.getY());
         telemetry.addData("Theta", m_pose.getHeading());
         telemetry.addData("navx heading", gyroInterface.getHeading().getRadians());
-
-        mecanumController.setHeadingPID(headingP, headingI, headingD, headingF);
 
         telemetry.update();
     }

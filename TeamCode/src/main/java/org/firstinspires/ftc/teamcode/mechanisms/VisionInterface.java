@@ -2,12 +2,13 @@ package org.firstinspires.ftc.teamcode.mechanisms;
 
 import android.annotation.SuppressLint;
 
+import com.arcrobotics.ftclib.geometry.Pose2d;
+import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.vision.VisionPortal;
@@ -46,7 +47,7 @@ public class VisionInterface {
     private YawPitchRollAngles cameraOrientation = new YawPitchRollAngles(AngleUnit.DEGREES,
             0, -80, 0, 0);
 
-    private Pose2D robotPosition;
+    private Pose2d robotPosition;
 
     /**
      * The variable to store our instance of the AprilTag processor.
@@ -143,7 +144,7 @@ public class VisionInterface {
                     double ry = detection.robotPose.getPosition().y;
                     double yawRad = detection.robotPose.getOrientation().getYaw(AngleUnit.RADIANS);
 
-                    robotPosition = new Pose2D(DistanceUnit.INCH, rx, ry, AngleUnit.RADIANS, yawRad);
+                    robotPosition = new Pose2d(rx, ry, new Rotation2d(yawRad));
 
                     //telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", rx, ry, detection.robotPose.getPosition().z));
 
@@ -168,20 +169,20 @@ public class VisionInterface {
         return canSeeAprilTag;
     }
 
-    public Pose2D getRobotPosition() {
+    public Pose2d getRobotPosition() {
         return robotPosition;
     }
 
     public double getHeading() {
-        return robotPosition.getHeading(AngleUnit.RADIANS);
+        return robotPosition.getHeading();
     }
 
     public double getX() {
-        return robotPosition.getX(DistanceUnit.INCH);
+        return robotPosition.getX();
     }
 
     public double getY() {
-        return robotPosition.getY(DistanceUnit.INCH);
+        return robotPosition.getY();
     }
 
     public void update() {

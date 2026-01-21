@@ -1,11 +1,10 @@
 package org.firstinspires.ftc.teamcode.mechanisms;
 
-import static com.arcrobotics.ftclib.purepursuit.PurePursuitUtil.angleWrap;
-
-import com.arcrobotics.ftclib.controller.PIDFController;
 import com.arcrobotics.ftclib.geometry.Pose2d;
 import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.arcrobotics.ftclib.geometry.Translation2d;
+import com.pedropathing.control.PIDFCoefficients;
+import com.pedropathing.control.PIDFController;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -22,6 +21,7 @@ public class MecanumMovement {
     //private IMU imu;
 
     public static PIDFController headingPIDF;
+    public static PIDFController headingPIDF2;
 
     Pose2D robotPosition;
 
@@ -62,11 +62,8 @@ public class MecanumMovement {
 
         //imu.initialize(new IMU.Parameters(RevOrientation));
 
-        headingPIDF = new PIDFController(0.8, 0, 0.05, 0.0);  // P, I, D — adjust as needed
-
-        // Optional: reduce output sensitivity
-        headingPIDF.setIntegrationBounds(-0.3, 0.3);
-        headingPIDF.setTolerance(Math.toRadians(3));  // 3° tolerance
+        headingPIDF = new PIDFController(new PIDFCoefficients(0.0, 0, 0.0, 1.0));  // P, I, D, F — adjust as needed
+        headingPIDF2 = new PIDFController(new PIDFCoefficients(0.0, 0, 0.0, 1.0));  // P, I, D, F — adjust as need
 
     }
 
@@ -151,16 +148,31 @@ public class MecanumMovement {
                 (position.getX(DistanceUnit.INCH) - Pose.getX())
         );
 
-        double currentHeading = heading.getRadians();
-        double error = angleWrap(goalHeadingR - currentHeading);
+        //double currentHeading = heading.getRadians();
+        //double error = angleWrap(goalHeadingR - currentHeading);
 
-        double turnPower = headingPIDF.calculate(error);
+        headingPIDF.updatePosition(heading.getRadians());
+        headingPIDF2.updatePosition(heading.getRadians());
+
+        headingPIDF.setTargetPosition(goalHeadingR);
+        headingPIDF2.setTargetPosition(goalHeadingR);
+
+        double turnPower;
+
+        if (Math.abs(headingPIDF.getError()) < 1) {
+            turnPower = headingPIDF2.run();
+        } else {
+            turnPower = headingPIDF.run();
+        }
+
+        telemetry.addData("Error", headingPIDF.run());
+        telemetry.addData("Heading Calc", headingPIDF.run());
 
         turnPower = Math.max(-0.8, Math.min(0.8, turnPower));
 
-        if (headingPIDF.atSetPoint()) {
-            turnPower = 0;
-        }
+        //if (headingPIDF.) {
+        //    turnPower = 0;
+        //}
 
         driveFieldRelative(forward, strafe, turnPower, heading, redTeam);
     }
@@ -209,17 +221,21 @@ public class MecanumMovement {
         return output;
     }
 
-    public void setHeadingPID(double p, double i, double d, double f) {
-        headingPIDF.setPIDF(p, i, d, f);
+    public void setHeadingPIDF(double p, double i, double d, double f) {
+        headingPIDF.setCoefficients(new PIDFCoefficients(p, i, d, f));
+    }
+
+    public void setHeadingPIDF2(double p, double i, double d, double f) {
+        headingPIDF2.setCoefficients(new PIDFCoefficients(p, i, d, f));
     }
 
     public double[] getHeadingPIDF() {
         double[] output = new double[4];
 
-        output[0] = headingPIDF.getP();
-        output[1] = headingPIDF.getI();
-        output[2] = headingPIDF.getD();
-        output[3] = headingPIDF.getF();
+        output[0] = headingPIDF.P();
+        output[1] = headingPIDF.I();
+        output[2] = headingPIDF.D();
+        output[3] = headingPIDF.F();
 
         return output;
     }
