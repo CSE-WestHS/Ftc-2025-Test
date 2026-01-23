@@ -22,7 +22,7 @@ public class FarBlue extends OpMode {
     private static int pathState;
     private Paths paths;
 
-    private BallMovement ballMovement;
+    private final BallMovement ballMovement = new BallMovement();
 
     @Override
     public void init() {

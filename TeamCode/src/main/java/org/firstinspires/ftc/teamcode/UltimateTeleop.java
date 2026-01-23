@@ -44,26 +44,24 @@ public class UltimateTeleop extends OpMode {
     public static int goalVelocity = 4000;
 
     Translation2d m_frontLeftLocation =
-            new Translation2d(4.75, 6.25);
+            new Translation2d(4.75/39.37, 6.25/39.37);
     Translation2d m_frontRightLocation =
-            new Translation2d(4.75, -6.25);
+            new Translation2d(4.75/39.37, -6.25/39.37);
     Translation2d m_backLeftLocation =
-            new Translation2d(-4.75, 0.381);
+            new Translation2d(-4.75/39.37, 6.25/39.37);
     Translation2d m_backRightLocation =
-            new Translation2d(-4.75, -0.381);
+            new Translation2d(-4.75/39.37, -6.25/39.37);
 
     MecanumDriveKinematics m_kinematics;
 
     MecanumDriveOdometry m_odometry;
 
-    public static double headingP = 0.0;
+    public static double headingP = 1.0;
     public static double headingI = 0.0;
     public static double headingD = 0.0;
-    public static double headingF = 1.0;
-    public static double heading2P = 0.0;
+    public static double heading2P = 0.1;
     public static double heading2I = 0.0;
     public static double heading2D = 0.0;
-    public static double heading2F = 1.0;
 
     private enum Alliance {
         RED,
@@ -90,7 +88,7 @@ public class UltimateTeleop extends OpMode {
         m_odometry = new MecanumDriveOdometry
                 (
                         m_kinematics, gyroInterface.getHeading(),
-                        new Pose2d(72, 72, new Rotation2d())
+                        new Pose2d(72/39.37, 72/39.37, new Rotation2d(3.14/2))
                 );
     }
 
@@ -99,8 +97,10 @@ public class UltimateTeleop extends OpMode {
         telemetry.addLine("Press X for Blue or B for Red");
         if (gamepad1.x) {
             alliance = Alliance.BLUE;
+            goalPos = new Pose2D(DistanceUnit.INCH, 4, 140, AngleUnit.RADIANS, 0);
         } else if (gamepad1.b) {
             alliance = Alliance.RED;
+            goalPos = new Pose2D(DistanceUnit.INCH, 140, 140, AngleUnit.RADIANS, 0);
         }
         telemetry.addData("Alliance:", alliance);
         telemetry.update();
@@ -122,33 +122,39 @@ public class UltimateTeleop extends OpMode {
         Rotation2d gyroAngle = gyroInterface.getHeading();
 
         // Update the pose
-        m_pose = m_odometry.updateWithTime(System.currentTimeMillis(), gyroAngle, wheelSpeeds);
+        m_pose = m_odometry.updateWithTime(System.currentTimeMillis()*1000, gyroAngle, wheelSpeeds);
     }
 
     @Override
     public void loop() {
         periodic(); // Update position
+        Pose2d robotPos_inch = new Pose2d(m_pose.getX()*39.37, m_pose.getY()*39.37, m_pose.getRotation());
         visionInterface.update();
         if (visionInterface.canSeeAprilTag()) {
             telemetry.addLine("Can see april tag rn!!!");
-            gyroInterface.alignHeadingWithVision(new Rotation2d(visionInterface.getHeading()));
-            m_odometry.resetPosition(visionInterface.getRobotPosition(), gyroInterface.getHeading());
+            //gyroInterface.alignHeadingWithVision(new Rotation2d(visionInterface.getHeading()));
+            Pose2d visionMeters = new Pose2d(visionInterface.getX()/39.37, visionInterface.getY()/39.37, new Rotation2d(visionInterface.getHeading()));
+            telemetry.addData("vision inches x", visionInterface.getX());
+            telemetry.addData("vision inches y", visionInterface.getY());
+            telemetry.addData("vision meters x", visionMeters.getX());
+            telemetry.addData("vision meters y", visionMeters.getY());
+            m_odometry.resetPosition(visionMeters, gyroInterface.getHeading());
         }
 
-        mecanumController.setHeadingPIDF(headingP, headingI, headingD, headingF);
-        mecanumController.setHeadingPIDF(heading2P, heading2I, heading2D, heading2F);
+        mecanumController.setHeadingPID(headingP, headingI, headingD);
+        mecanumController.setHeadingPID(heading2P, heading2I, heading2D);
         if (gamepad1.right_trigger > 0.2) {
             mecanumController.driveFacingPoint(
                     -gamepad1.left_stick_y,
                     gamepad1.left_stick_x,
-                    new Pose2D(DistanceUnit.INCH, 10, 10, AngleUnit.RADIANS, 0),
-                    m_pose,
+                    goalPos,
+                    robotPos_inch,
                     gyroInterface.getHeading(),
                     (alliance == Alliance.RED)
             );
-            ballMovement.setVelocity(goalVelocity);
+            //ballMovement.setVelocity(goalVelocity);
             if (gamepad1.right_trigger > 0.8) {
-                ballMovement.launch(goalVelocity);
+                //ballMovement.launch(goalVelocity);
             }
         } else if (gamepad1.dpad_up) {
             mecanumController.drive(
@@ -170,7 +176,7 @@ public class UltimateTeleop extends OpMode {
             ballMovement.launch((double) (goalVelocity * 28) / 60);
         } else if (gamepad1.y) {
             ballMovement.setVelocity((double) (goalVelocity * 28) / 60);
-        } else {
+        } else if (!(gamepad1.right_trigger > 0.2)){
             ballMovement.setVelocity(0);
         }
 
@@ -184,12 +190,13 @@ public class UltimateTeleop extends OpMode {
         //PoseEstimator.updateWithImuHeading(gyroInterface.getHeading().getRadians());
         fieldManager.setStyle("#FF4081", "#FF4081", 5);
         //fieldManager.moveCursor(PoseEstimator.getX(),PoseEstimator.getY());
-        fieldManager.moveCursor(m_pose.getX(), m_pose.getY());
-        fieldManager.circle(10);
+        fieldManager.moveCursor(robotPos_inch.getX(), robotPos_inch.getY());
+        fieldManager.circle(5);
         //double x = PoseEstimator.getX() + 10 * Math.cos(PoseEstimator.getTheta());
         //double y = PoseEstimator.getY() + 10 * Math.sin(PoseEstimator.getTheta());
-        double x = m_pose.getX() + 10 * Math.cos(m_pose.getRotation().getRadians());
-        double y = m_pose.getY() + 10 * Math.sin(m_pose.getRotation().getRadians());
+        fieldManager.setStyle("", "#FFFFFF", 5);
+        double x = robotPos_inch.getX() + 5 * Math.cos(robotPos_inch.getRotation().getRadians());
+        double y = robotPos_inch.getY() + 5 * Math.sin(robotPos_inch.getRotation().getRadians());
         fieldManager.setStyle("00FF00", "00FF00", 5);
         fieldManager.line(x, y);
         fieldManager.setStyle("0000FF", "0000FF", 5);
@@ -198,9 +205,9 @@ public class UltimateTeleop extends OpMode {
         //robotDrawing.drawRobotRectOnPanels(PoseEstimator.getX(), PoseEstimator.getY(), PoseEstimator.getTheta(), 18, 18, "#3F51B5", fieldManager);
         //double[] driveDistances = mecanumController.getDriveDistances();
         //PoseEstimator.predict(driveDistances[1], driveDistances[0], driveDistances[3], driveDistances[2]);
-        telemetry.addData("X", m_pose.getX());
-        telemetry.addData("Y", m_pose.getY());
-        telemetry.addData("Theta", m_pose.getHeading());
+        telemetry.addData("X", robotPos_inch.getX());
+        telemetry.addData("Y", robotPos_inch.getY());
+        telemetry.addData("Theta", robotPos_inch.getHeading());
         telemetry.addData("navx heading", gyroInterface.getHeading().getRadians());
 
         telemetry.update();

@@ -4,11 +4,16 @@ import android.annotation.SuppressLint;
 
 import com.arcrobotics.ftclib.geometry.Pose2d;
 import com.arcrobotics.ftclib.geometry.Rotation2d;
+import com.pedropathing.ftc.InvertedFTCCoordinates;
+import com.pedropathing.ftc.PoseConverter;
+import com.pedropathing.geometry.PedroCoordinates;
+import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.vision.VisionPortal;
@@ -43,7 +48,7 @@ public class VisionInterface {
      * to +/-90 degrees if it's vertical, or 180 degrees if it's upside-down.
      */
     private Position cameraPosition = new Position(DistanceUnit.INCH,
-            0, 0, 0, 0);
+            0, 7, 10, 0);
     private YawPitchRollAngles cameraOrientation = new YawPitchRollAngles(AngleUnit.DEGREES,
             0, -80, 0, 0);
 
@@ -79,7 +84,7 @@ public class VisionInterface {
                 // == CAMERA CALIBRATION ==
                 // If you do not manually specify calibration parameters, the SDK will attempt
                 // to load a predefined calibration for your camera.
-                .setLensIntrinsics(1414.08, 1414.08, 949.538, 548.198)
+                //.setLensIntrinsics(1414.08, 1414.08, 949.538, 548.198)
                 // ... these parameters are fx, fy, cx, cy.
 
                 .build();
@@ -170,7 +175,7 @@ public class VisionInterface {
     }
 
     public Pose2d getRobotPosition() {
-        return robotPosition;
+        return new Pose2d(getX(), getY(), new Rotation2d(0));
     }
 
     public double getHeading() {
@@ -178,11 +183,17 @@ public class VisionInterface {
     }
 
     public double getX() {
-        return robotPosition.getX();
+        Pose2D robotPos = new Pose2D(DistanceUnit.INCH, robotPosition.getX(), robotPosition.getY(), AngleUnit.RADIANS, robotPosition.getHeading());
+        Pose ftcStandard = PoseConverter.pose2DToPose(robotPos, InvertedFTCCoordinates.INSTANCE);
+        Pose pedroPose = ftcStandard.getAsCoordinateSystem(PedroCoordinates.INSTANCE);
+        return pedroPose.getX()+72;
     }
 
     public double getY() {
-        return robotPosition.getY();
+        Pose2D robotPos = new Pose2D(DistanceUnit.INCH, robotPosition.getX(), robotPosition.getY(), AngleUnit.RADIANS, robotPosition.getHeading());
+        Pose ftcStandard = PoseConverter.pose2DToPose(robotPos, InvertedFTCCoordinates.INSTANCE);
+        Pose pedroPose = ftcStandard.getAsCoordinateSystem(PedroCoordinates.INSTANCE);
+        return pedroPose.getY()+72;
     }
 
     public void update() {

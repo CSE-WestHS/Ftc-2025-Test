@@ -33,7 +33,6 @@ import android.annotation.SuppressLint;
 
 import com.bylazar.field.FieldManager;
 import com.bylazar.field.PanelsField;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -69,7 +68,7 @@ import java.util.List;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list.
  */
 @TeleOp(name = "Concept: AprilTag Localization", group = "Concept")
-@Disabled
+//@Disabled
 public class ConceptAprilTagLocalization extends LinearOpMode {
 
     private static final FieldManager fieldManager = PanelsField.INSTANCE.getField();

@@ -1,16 +1,17 @@
 package org.firstinspires.ftc.teamcode.mechanisms;
 
+import static com.arcrobotics.ftclib.purepursuit.PurePursuitUtil.angleWrap;
+
+import com.arcrobotics.ftclib.controller.PIDController;
 import com.arcrobotics.ftclib.geometry.Pose2d;
 import com.arcrobotics.ftclib.geometry.Rotation2d;
-import com.arcrobotics.ftclib.geometry.Translation2d;
-import com.pedropathing.control.PIDFCoefficients;
-import com.pedropathing.control.PIDFController;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
@@ -20,8 +21,8 @@ public class MecanumMovement {
     //private final GyroInterface navx = new GyroInterface();
     //private IMU imu;
 
-    public static PIDFController headingPIDF;
-    public static PIDFController headingPIDF2;
+    public static PIDController headingPID;
+    public static PIDController headingPID2;
 
     Pose2D robotPosition;
 
@@ -62,8 +63,8 @@ public class MecanumMovement {
 
         //imu.initialize(new IMU.Parameters(RevOrientation));
 
-        headingPIDF = new PIDFController(new PIDFCoefficients(0.0, 0, 0.0, 1.0));  // P, I, D, F — adjust as needed
-        headingPIDF2 = new PIDFController(new PIDFCoefficients(0.0, 0, 0.0, 1.0));  // P, I, D, F — adjust as need
+        headingPID = new PIDController(1.0,0,0);  // P, I, D — adjust as needed
+        headingPID2 = new PIDController(1.0,0,0);  // P, I, D — adjust as need
 
     }
 
@@ -98,18 +99,25 @@ public class MecanumMovement {
      */
     public void driveFieldRelative(double forward, double strafe, double rotate, Rotation2d heading, boolean redTeam) {
 
-        Translation2d chassisSpeeds = new Translation2d(forward, strafe);
+        Rotation2d allianceRotatedHeading = new Rotation2d(heading.getRadians());
 
-        chassisSpeeds.rotateBy(heading.times(-1));
+        //Translation2d chassisSpeeds = new Translation2d(forward, strafe);
+
+        //chassisSpeeds.rotateBy(heading.times(-1));
+
+        telemetry.addData("redTeam", redTeam);
 
         if (redTeam) {
-            chassisSpeeds.rotateBy(Rotation2d.fromDegrees(90));
-        } else {
-            chassisSpeeds.rotateBy(Rotation2d.fromDegrees(-90));
+            //chassisSpeeds.rotateBy(Rotation2d.fromDegrees(90));
+            allianceRotatedHeading = new Rotation2d(AngleUnit.normalizeRadians(heading.getRadians()+Math.PI));
+
         }
 
-        double newForward = forward * heading.getCos() + strafe * heading.getSin();
-        double newStrafe = -forward * heading.getSin() + strafe * heading.getCos();
+        telemetry.addData("before heading", heading.getDegrees());
+        telemetry.addData("alliance heading", allianceRotatedHeading.getDegrees());
+
+        double newForward = forward * allianceRotatedHeading.getCos() + strafe * allianceRotatedHeading.getSin();
+        double newStrafe = -forward * allianceRotatedHeading.getSin() + strafe * allianceRotatedHeading.getCos();
 
 
         /*double theta = Math.atan2(forward, strafe);
@@ -125,13 +133,13 @@ public class MecanumMovement {
         double newForward = r * Math.sin(theta);
         double newStrafe = r * Math.cos(theta);*/
 
-        telemetry.addData("passed in heading", heading.getRadians());
-        telemetry.addData("forward", forward);
-        telemetry.addData("strafe", strafe);
-        telemetry.addData("chassisX", chassisSpeeds.getX());
-        telemetry.addData("chassisY", chassisSpeeds.getY());
-        telemetry.addData("newForward", newForward);
-        telemetry.addData("newStrafe", newStrafe);
+//        telemetry.addData("passed in heading", heading.getRadians());
+//        telemetry.addData("forward", forward);
+//        telemetry.addData("strafe", strafe);
+//        telemetry.addData("chassisX", chassisSpeeds.getX());
+//        telemetry.addData("chassisY", chassisSpeeds.getY());
+//        telemetry.addData("newForward", newForward);
+//        telemetry.addData("newStrafe", newStrafe);
 
         this.drive(newForward, newStrafe, rotate);
     }
@@ -148,25 +156,20 @@ public class MecanumMovement {
                 (position.getX(DistanceUnit.INCH) - Pose.getX())
         );
 
-        //double currentHeading = heading.getRadians();
-        //double error = angleWrap(goalHeadingR - currentHeading);
-
-        headingPIDF.updatePosition(heading.getRadians());
-        headingPIDF2.updatePosition(heading.getRadians());
-
-        headingPIDF.setTargetPosition(goalHeadingR);
-        headingPIDF2.setTargetPosition(goalHeadingR);
+        double currentHeading = heading.getRadians();
+        double error = angleWrap(goalHeadingR - currentHeading);
 
         double turnPower;
 
-        if (Math.abs(headingPIDF.getError()) < 1) {
-            turnPower = headingPIDF2.run();
+        if (Math.abs(error) < 0.3) {
+            turnPower = -headingPID2.calculate(error);
         } else {
-            turnPower = headingPIDF.run();
+            turnPower = -headingPID.calculate(error);
         }
 
-        telemetry.addData("Error", headingPIDF.run());
-        telemetry.addData("Heading Calc", headingPIDF.run());
+        telemetry.addData("Error", error);
+        telemetry.addData("Heading Calc", headingPID.calculate(error));
+        telemetry.addData("Heading2 Calc", headingPID2.calculate(error));
 
         turnPower = Math.max(-0.8, Math.min(0.8, turnPower));
 
@@ -202,11 +205,11 @@ public class MecanumMovement {
         previousPos[3] = currentBL;
 
         // Scale by the meters per tick factor
-        final double INCHES_PER_TICK = 0.00190352859;
-        output[0] *= INCHES_PER_TICK;
-        output[1] *= INCHES_PER_TICK;
-        output[2] *= INCHES_PER_TICK;
-        output[3] *= INCHES_PER_TICK;
+        final double METERS_PER_TICK = 0.00021;
+        output[0] *= METERS_PER_TICK;
+        output[1] *= METERS_PER_TICK;
+        output[2] *= METERS_PER_TICK;
+        output[3] *= METERS_PER_TICK;
 
         // Calculate the time difference
         double currentTime = (double) System.currentTimeMillis() * 1000;
@@ -221,21 +224,20 @@ public class MecanumMovement {
         return output;
     }
 
-    public void setHeadingPIDF(double p, double i, double d, double f) {
-        headingPIDF.setCoefficients(new PIDFCoefficients(p, i, d, f));
+    public void setHeadingPID(double p, double i, double d) {
+        headingPID.setPID(p, i, d);
     }
 
-    public void setHeadingPIDF2(double p, double i, double d, double f) {
-        headingPIDF2.setCoefficients(new PIDFCoefficients(p, i, d, f));
+    public void setHeadingPID2(double p, double i, double d) {
+        headingPID2.setPID(p, i, d);
     }
 
-    public double[] getHeadingPIDF() {
-        double[] output = new double[4];
+    public double[] getHeadingPID() {
+        double[] output = new double[3];
 
-        output[0] = headingPIDF.P();
-        output[1] = headingPIDF.I();
-        output[2] = headingPIDF.D();
-        output[3] = headingPIDF.F();
+        output[0] = headingPID.getP();
+        output[1] = headingPID.getI();
+        output[2] = headingPID.getD();
 
         return output;
     }
